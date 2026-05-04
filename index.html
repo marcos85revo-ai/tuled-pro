@@ -1416,7 +1416,17 @@ function renderStep1(el) {
     <div class="choice-grid choice-grid-2">
       <div class="choice-card card-anim ${state.entorno==='Indoor'?'selected':''}" onclick="selectEntorno('Indoor')" style="animation-delay:.05s">
         <div class="card-check">${state.entorno==='Indoor'?'✓':''}</div>
-        <span class="card-icon">🏛️</span>
+        <span class="card-icon" style="display:block;margin-bottom:14px">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="38" width="36" height="3" rx="1.5" fill="#29B6F6" opacity=".5"/>
+            <rect x="7" y="20" width="4" height="18" rx="1" fill="#29B6F6"/>
+            <rect x="15" y="20" width="4" height="18" rx="1" fill="#29B6F6"/>
+            <rect x="25" y="20" width="4" height="18" rx="1" fill="#29B6F6"/>
+            <rect x="33" y="20" width="4" height="18" rx="1" fill="#29B6F6"/>
+            <rect x="4" y="15" width="36" height="5" rx="1" fill="#29B6F6"/>
+            <polygon points="22,3 2,15 42,15" fill="rgba(41,182,246,0.25)" stroke="#29B6F6" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </span>
         <div class="card-title">INTERIOR</div>
         <div class="card-desc">Espacios cerrados con luz controlada: oficinas, salas de control, museos, retail, estudios de broadcast.</div>
         <div class="card-tags">
@@ -1427,7 +1437,20 @@ function renderStep1(el) {
       </div>
       <div class="choice-card card-anim ${state.entorno==='Outdoor'?'selected-orange':''}" onclick="selectEntorno('Outdoor')" style="animation-delay:.1s">
         <div class="card-check">${state.entorno==='Outdoor'?'✓':''}</div>
-        <span class="card-icon">☀️</span>
+        <span class="card-icon" style="display:block;margin-bottom:14px">
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <line x1="22" y1="2" x2="22" y2="8" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="22" y1="36" x2="22" y2="42" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="2" y1="22" x2="8" y2="22" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="36" y1="22" x2="42" y2="22" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="7.2" y1="7.2" x2="11.5" y2="11.5" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="32.5" y1="32.5" x2="36.8" y2="36.8" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="36.8" y1="7.2" x2="32.5" y2="11.5" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <line x1="11.5" y1="32.5" x2="7.2" y2="36.8" stroke="#4E8870" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="22" cy="22" r="10" fill="#00E6A8" opacity=".85"/>
+            <circle cx="22" cy="22" r="10" stroke="#00C896" stroke-width="1.5" fill="none"/>
+          </svg>
+        </span>
         <div class="card-title">EXTERIOR</div>
         <div class="card-desc">Espacios al aire libre con alta exposición lumínica: fachadas, estadios, vallas publicitarias, eventos.</div>
         <div class="card-tags">
@@ -1976,16 +1999,25 @@ function renderStep6() {
   const sec = document.getElementById('results-section');
   const n = state.top3.length;
 
+  const icoEntorno = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="1" width="10" height="10" rx="2" stroke="#29B6F6" stroke-width="1.2"/><line x1="3.5" y1="6" x2="8.5" y2="6" stroke="#29B6F6" stroke-width=".9"/><line x1="6" y1="3.5" x2="6" y2="8.5" stroke="#29B6F6" stroke-width=".9"/></svg>`;
+  const icoDim    = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><line x1="1.5" y1="6" x2="10.5" y2="6" stroke="#29B6F6" stroke-width="1.2"/><line x1="1.5" y1="3.5" x2="1.5" y2="8.5" stroke="#29B6F6" stroke-width="1.2"/><line x1="10.5" y1="3.5" x2="10.5" y2="8.5" stroke="#29B6F6" stroke-width="1.2"/></svg>`;
+  const icoRatio  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2.5" width="10" height="7" rx="1" stroke="#29B6F6" stroke-width="1.2"/></svg>`;
+  const icoHz     = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#29B6F6" stroke-width="1.1"/><line x1="6" y1="3" x2="6" y2="6" stroke="#29B6F6" stroke-width="1.1"/><line x1="6" y1="6" x2="8.5" y2="8.5" stroke="#29B6F6" stroke-width="1.1"/></svg>`;
+  const icoNits   = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="2.5" stroke="#29B6F6" stroke-width="1.1"/><line x1="6" y1="1" x2="6" y2="3" stroke="#29B6F6" stroke-width="1"/><line x1="6" y1="9" x2="6" y2="11" stroke="#29B6F6" stroke-width="1"/><line x1="1" y1="6" x2="3" y2="6" stroke="#29B6F6" stroke-width="1"/><line x1="9" y1="6" x2="11" y2="6" stroke="#29B6F6" stroke-width="1"/></svg>`;
+  const icoTech   = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2.5" width="10" height="7" rx="1" stroke="#29B6F6" stroke-width="1.1"/><line x1="3.5" y1="5" x2="3.5" y2="7" stroke="#29B6F6" stroke-width=".9"/><line x1="5.5" y1="4.5" x2="5.5" y2="7.5" stroke="#29B6F6" stroke-width=".9"/><line x1="7.5" y1="5.5" x2="7.5" y2="6.5" stroke="#29B6F6" stroke-width=".9"/></svg>`;
+  const icoPitch  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#29B6F6" stroke-width="1.1"/><circle cx="6" cy="6" r="1.6" fill="#29B6F6"/></svg>`;
+  const icoEscen  = `<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5 L10.5 10.5 L1.5 10.5 Z" stroke="#29B6F6" stroke-width="1.1" stroke-linejoin="round" fill="none"/></svg>`;
+
   const configBar = `
     <div class="config-bar">
-      ${state.entorno ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.entorno}</strong></div>` : ''}
-      ${state.ancho ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.ancho}m × ${state.alto}m</strong></div>` : ''}
-      ${state.aspectRatio !== 'none' ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.aspectRatio}</strong></div>` : ''}
-      ${state.refreshMin ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.refreshMin === state.refreshMax ? state.refreshMin.toLocaleString()+' Hz' : state.refreshMin.toLocaleString()+'–'+state.refreshMax.toLocaleString()+' Hz'}</strong></div>` : ''}
-      ${state.brilloMin ? `<div class="config-chip"><span class="config-chip-dot" style="background:var(--yellow)"></span><strong>${state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits'}</strong></div>` : ''}
-      ${state.tecnologia ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.tecnologia}</strong></div>` : ''}
-      ${state.pitchMin ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>P${state.pitchMin}–P${state.pitchMax}mm</strong></div>` : ''}
-      ${state.escenarios.length ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${SCENARIOS.find(s=>s.id===state.escenarios[0])?.name}</strong></div>` : ''}
+      ${state.entorno ? `<div class="config-chip">${icoEntorno}<strong>${state.entorno}</strong></div>` : ''}
+      ${state.ancho ? `<div class="config-chip">${icoDim}<strong>${state.ancho}m × ${state.alto}m</strong></div>` : ''}
+      ${state.aspectRatio !== 'none' ? `<div class="config-chip">${icoRatio}<strong>${state.aspectRatio}</strong></div>` : ''}
+      ${state.refreshMin ? `<div class="config-chip">${icoHz}<strong>${state.refreshMin === state.refreshMax ? state.refreshMin.toLocaleString()+' Hz' : state.refreshMin.toLocaleString()+'–'+state.refreshMax.toLocaleString()+' Hz'}</strong></div>` : ''}
+      ${state.brilloMin ? `<div class="config-chip">${icoNits}<strong>${state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits'}</strong></div>` : ''}
+      ${state.tecnologia ? `<div class="config-chip">${icoTech}<strong>${state.tecnologia}</strong></div>` : ''}
+      ${state.pitchMin ? `<div class="config-chip">${icoPitch}<strong>P${state.pitchMin}–P${state.pitchMax}mm</strong></div>` : ''}
+      ${state.escenarios.length ? `<div class="config-chip">${icoEscen}<strong>${SCENARIOS.find(s=>s.id===state.escenarios[0])?.name}</strong></div>` : ''}
       <button class="btn-back" style="margin-left:auto" onclick="goToStep(1)">← Nueva configuración</button>
     </div>`;
 
@@ -2158,16 +2190,54 @@ function getComputedVal(key, p) {
 function buildCompTable(products) {
   if (!products.length) return '<p style="color:var(--text2);padding:20px">No se encontraron productos compatibles con los filtros seleccionados.</p>';
 
+  // Colores por ranking — TODOS los datos de cada columna van en su color
+  const rankColors  = ['#00E6A8','#29B6F6','#F5C542'];
+  const rankBg      = ['rgba(0,230,168,0.09)','rgba(41,182,246,0.07)','rgba(245,197,66,0.07)'];
+  const rankBorder  = ['rgba(0,230,168,0.40)','rgba(41,182,246,0.38)','rgba(245,197,66,0.32)'];
+  const rankBadgeBg = ['rgba(0,230,168,0.12)','rgba(41,182,246,0.12)','rgba(245,197,66,0.10)'];
+  const rankLabels  = ['★ MEJOR MATCH','★ MUY COMPATIBLE','★ COMPATIBLE'];
+  const rankCompat  = ['Excelente compatibilidad','Muy buena compatibilidad','Buena compatibilidad'];
+
+  // CARDS de producto en la parte superior — todo en el color del ranking
+  let cards = `<div style="display:grid;grid-template-columns:repeat(${products.length},1fr);gap:12px;padding:16px 0 8px">`;
+  products.forEach((p, i) => {
+    const c = rankColors[i];
+    const bg = rankBg[i];
+    const brd = rankBorder[i];
+    const bbg = rankBadgeBg[i];
+    const pitch = p.pitch_mm != null ? p.pitch_mm+' mm' : '—';
+    const brillo = p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString()+' nits' : '—';
+    const refresh = p.refresh_hz != null ? p.refresh_hz.toLocaleString()+' Hz' : '—';
+    const ip = p.ip_rating || '—';
+    cards += `
+    <div style="background:${bg};border:1.5px solid ${brd};border-radius:14px;padding:16px">
+      <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:${bbg};border:1px solid ${brd};font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${c};margin-bottom:10px">${rankLabels[i]}</div>
+      <div style="width:100%;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:${bbg};border:1px dashed ${brd};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;color:${c};opacity:.6">SIN IMAGEN</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880;letter-spacing:2px;margin-bottom:2px">${p.fabricante.toUpperCase()}</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${c};margin-bottom:7px;line-height:1.1">${p.modelo}</div>
+      <div style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;background:${bbg};border:1px solid ${brd};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${c};margin-bottom:4px">▲ ${p.score} / 100</div>
+      <div style="font-size:11px;font-weight:600;color:${c};margin-bottom:10px">${rankCompat[i]}</div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(100,140,180,0.07)"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880">Tecnología</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${c}">${p.tecnologia||'—'}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(100,140,180,0.07)"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880">Pixel Pitch</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${c}">${pitch}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(100,140,180,0.07)"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880">Brillo máx.</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${c}">${brillo}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(100,140,180,0.07)"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880">Refresh</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${c}">${refresh}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0"><span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880">IP Rating</span><span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${c}">${ip}</span></div>
+    </div>`;
+  });
+  cards += `</div>
+  <div style="text-align:center;padding:6px 0 10px;font-size:13px;color:#29B6F6;cursor:pointer">Ver todas las especificaciones →</div>`;
+
+  // TABLA comparativa — cabeceras y datos en el color del ranking
   const scoreClasses = ['','score-2','score-3'];
-  const rankLabels = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+  const rankLabelsShort = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
 
   let thead = `<thead><tr><th></th>`;
   products.forEach((p, i) => {
     thead += `<th><div class="th-inner">
-      <div class="th-brand">${p.fabricante}</div>
-      <div class="th-model">${p.serie} ${p.modelo}</div>
+      <div class="th-brand" style="color:${rankColors[i]};opacity:.7">${p.fabricante}</div>
+      <div class="th-model" style="color:${rankColors[i]}">${p.serie} ${p.modelo}</div>
       <div class="score-badge ${scoreClasses[i]}">◆ ${p.score}/100</div>
-      <div class="rank-label">${rankLabels[i]||''}</div>
+      <div class="rank-label">${rankLabelsShort[i]||''}</div>
     </div></th>`;
   });
   thead += '</tr></thead>';
@@ -2243,7 +2313,7 @@ function buildCompTable(products) {
   });
   tbody += '</tbody>';
 
-  return `<table class="comp-table">${thead}${tbody}</table>`;
+  return cards + `<table class="comp-table">${thead}${tbody}</table>`;
 }
 
 // ═══════════════════════════════════════

@@ -2086,8 +2086,7 @@ function renderStep6() {
       <div class="conclusion-header">
         <div class="conclusion-header-icon">◆</div>
         <div>
-          <div class="conclusion-header-title">Análisis del Consultor</div>
-          <div class="conclusion-header-sub">// Generado por IA · Basado en tu configuración</div>
+          <div class="conclusion-header-title">Conclusión</div>
         </div>
       </div>
       <div class="conclusion-body" id="conclusion-body">
@@ -2096,10 +2095,7 @@ function renderStep6() {
           <div class="conclusion-loading-text">Analizando compatibilidad y generando conclusión...</div>
         </div>
       </div>
-      <div class="conclusion-footer" id="conclusion-footer" style="display:none">
-        <span class="conclusion-badge">◆ ANÁLISIS IA</span>
-        <span class="conclusion-badge-model" id="conclusion-model-badge"></span>
-      </div>
+      <div class="conclusion-footer" id="conclusion-footer" style="display:none"></div>
     </div>
     <div class="add-model-section">
       <div class="add-model-title">¿Tienes otro modelo en mente?</div>
@@ -2190,7 +2186,6 @@ function getComputedVal(key, p) {
 function buildCompTable(products) {
   if (!products.length) return '<p style="color:var(--text2);padding:20px">No se encontraron productos compatibles con los filtros seleccionados.</p>';
 
-  // Colores por ranking — TODOS los datos de cada columna van en su color
   const rankColors  = ['#00E6A8','#29B6F6','#F5C542'];
   const rankBg      = ['rgba(0,230,168,0.09)','rgba(41,182,246,0.07)','rgba(245,197,66,0.07)'];
   const rankBorder  = ['rgba(0,230,168,0.40)','rgba(41,182,246,0.38)','rgba(245,197,66,0.32)'];
@@ -2198,7 +2193,6 @@ function buildCompTable(products) {
   const rankLabels  = ['★ MEJOR MATCH','★ MUY COMPATIBLE','★ COMPATIBLE'];
   const rankCompat  = ['Excelente compatibilidad','Muy buena compatibilidad','Buena compatibilidad'];
 
-  // CARDS de producto en la parte superior — todo en el color del ranking
   let cards = `<div style="display:grid;grid-template-columns:repeat(${products.length},1fr);gap:12px;padding:16px 0 8px">`;
   products.forEach((p, i) => {
     const c = rankColors[i];
@@ -2227,7 +2221,6 @@ function buildCompTable(products) {
   cards += `</div>
   <div style="text-align:center;padding:6px 0 10px;font-size:13px;color:#29B6F6;cursor:pointer">Ver todas las especificaciones →</div>`;
 
-  // TABLA comparativa — cabeceras y datos en el color del ranking
   const scoreClasses = ['','score-2','score-3'];
   const rankLabelsShort = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
 
@@ -2265,14 +2258,15 @@ function buildCompTable(products) {
         // Tratamiento especial para refresh_hz: mostrar badge de cumplimiento
         if (row.key === 'refresh_hz' && state.refreshMin) {
           const rMin = state.refreshMin;
+          const rc = ['#00E6A8','#29B6F6','#F5C542'][i] || 'var(--text)';
           if (raw === null || raw === undefined) {
             display = '<span class="val na">N/D</span>';
           } else {
             const cumple = raw >= rMin;
             const badge = cumple
-              ? `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);margin-left:6px">✓ OK</span>`
+              ? `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,0,0,.2);color:${rc};border:1px solid ${rc};margin-left:6px;opacity:.85">✓ OK</span>`
               : `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,61,87,.1);color:var(--red);border:1px solid rgba(255,61,87,.25);margin-left:6px">✗ -${(rMin-raw).toLocaleString()}Hz</span>`;
-            display = `<span class="${cumple ? 'val best' : 'val worst'}" style="display:inline-flex;align-items:center">${raw.toLocaleString()} Hz${badge}</span>`;
+            display = `<span style="display:inline-flex;align-items:center;color:${rc};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${raw.toLocaleString()} Hz${badge}</span>`;
             tbody += `<td>${display}</td>`;
             return;
           }
@@ -2282,6 +2276,7 @@ function buildCompTable(products) {
         if (row.key === 'brillo_max_nits' && state.brilloMin) {
           const bMin = state.brilloMin;
           const bMax = state.brilloMax;
+          const rc2 = ['#00E6A8','#29B6F6','#F5C542'][i] || 'var(--text)';
           if (raw === null || raw === undefined) {
             display = '<span class="val na">N/D</span>';
           } else {
@@ -2289,14 +2284,13 @@ function buildCompTable(products) {
             const sobredim = raw > bMax;
             let badge;
             if (cumple && !sobredim) {
-              badge = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);margin-left:6px">✓ OK</span>`;
+              badge = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,0,0,.2);color:${rc2};border:1px solid ${rc2};margin-left:6px;opacity:.85">✓ OK</span>`;
             } else if (cumple && sobredim) {
-              badge = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,215,64,.1);color:var(--yellow);border:1px solid rgba(255,215,64,.25);margin-left:6px">↑ +${(raw-bMax).toLocaleString()}</span>`;
+              badge = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(0,0,0,.2);color:${rc2};border:1px solid ${rc2};margin-left:6px;opacity:.85">↑ +${(raw-bMax).toLocaleString()}</span>`;
             } else {
               badge = `<span style="font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(255,61,87,.1);color:var(--red);border:1px solid rgba(255,61,87,.25);margin-left:6px">✗ -${(bMin-raw).toLocaleString()}</span>`;
             }
-            const cls = cumple ? (sobredim ? 'val' : 'val best') : 'val worst';
-            display = `<span class="${cls}" style="display:inline-flex;align-items:center">${raw.toLocaleString()} nits${badge}</span>`;
+            display = `<span style="display:inline-flex;align-items:center;color:${rc2};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700">${raw.toLocaleString()} nits${badge}</span>`;
             tbody += `<td>${display}</td>`;
             return;
           }
@@ -2305,8 +2299,13 @@ function buildCompTable(products) {
         if (Array.isArray(raw)) display = raw.join(', ');
         if (typeof raw === 'boolean') display = raw ? '✓ Sí' : '— No';
         if (raw === null || raw === undefined) display = '<span class="val na">N/D</span>';
-        const cls = i === bestIdx ? 'val best' : i === worstIdx ? 'val worst' : 'val';
-        tbody += `<td><span class="${cls}">${display}</span></td>`;
+        const rankCol = ['#00E6A8','#29B6F6','#F5C542'][i] || 'var(--text)';
+        // Flecha ↑ (mejor) o ↓ (peor) en el color del ranking
+        let arrowBadge = '';
+        if (i === bestIdx) arrowBadge = ` <span style="font-size:9px;color:${rankCol};opacity:.8">↑</span>`;
+        if (i === worstIdx) arrowBadge = ` <span style="font-size:9px;color:${rankCol};opacity:.6">↓</span>`;
+        const valStyle = (raw !== null && raw !== undefined) ? `style="color:${rankCol};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700"` : '';
+        tbody += `<td><span ${valStyle}>${display}${arrowBadge}</span></td>`;
       });
       tbody += '</tr>';
     });
@@ -2393,12 +2392,8 @@ async function generateConclusion() {
 
     bodyEl.innerHTML = `<div class="conclusion-text">${parrafos}</div>`;
 
-    // Footer con badge del modelo #1
-    if (footerEl && badgeEl) {
-      const p1 = state.top3[0];
-      badgeEl.textContent = p1 ? p1.fabricante + ' ' + p1.modelo : '';
-      footerEl.style.display = 'flex';
-    }
+    // Footer oculto (eliminado por diseño)
+    if (footerEl) footerEl.style.display = 'none';
 
   } catch(e) {
     console.error('Conclusión IA error:', e);

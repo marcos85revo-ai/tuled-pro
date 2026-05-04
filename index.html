@@ -1276,8 +1276,14 @@ function scoreProduct(p) {
     else resScore = 30;
   }
 
-  // Factor 5: Tecnología seleccionada por usuario
-  let techScore = p.tecnologia === state.tecnologia ? 100 : 40;
+  // Factor 5: Tecnología — CRITERIO CRÍTICO
+  // Se evalúa usando led_type_categoria (normalizado desde led_type en BD)
+  const catProd = (p.led_type_categoria || '').toUpperCase();
+  const catUser = (state.tecnologia || '').toUpperCase();
+  // Si no coincide tecnología → score 0 (filtro duro, igual que entorno)
+  if (catProd && catUser && catProd !== catUser) return -1; // -1 = no cumple criterio crítico
+  // Si hay dato y coincide → bonus; si no hay dato en BD → neutro
+  let techScore = catProd === catUser ? 100 : 50;
 
   // Factor 6: Refresh rate — el producto debe alcanzar el mínimo exigido por usuario
   let refreshScore = 50; // neutro si no hay dato en BD
@@ -1328,11 +1334,16 @@ function scoreProduct(p) {
 }
 
 function getTop3() {
+  // CRITERIOS CRÍTICOS: entorno y tecnología son filtros duros
+  // Un score de -1 significa que no cumple criterio crítico → se excluye siempre
+  // Un score de 0 significa que cumple críticos pero no encaja bien → se puede mostrar
   const scored = CATALOGUE.map(p => ({...p, score: scoreProduct(p)}))
-    .filter(p => p.score > 0)
+    .filter(p => p.score > 0) // excluir score 0 (entorno no coincide) y -1 (tecnología no coincide)
     .sort((a,b) => b.score - a.score)
-    .slice(0,3);
+    .slice(0, 3);
   return scored;
+  // Nota: si scored.length === 0, renderStep6 mostrará el mensaje de sin resultados
+  // Si scored.length === 1 o 2, mostrará solo los que hay
 }
 
 // ═══════════════════════════════════════
@@ -1983,7 +1994,13 @@ function toggleScenario(id) {
 function renderStep6() {
   renderProgress();
   state.top3 = getTop3();
+
+  // 🔥 TRACKING: registrar búsqueda completada en Supabase (silencioso)
+  trackBusquedaCompletada(state.top3);
+
   const sec = document.getElementById('results-section');
+  const n = state.top3.length;
+
   const configBar = `
     <div class="config-bar">
       ${state.entorno ? `<div class="config-chip"><span class="config-chip-dot"></span><strong>${state.entorno}</strong></div>` : ''}
@@ -1997,15 +2014,65 @@ function renderStep6() {
       <button class="btn-back" style="margin-left:auto" onclick="goToStep(1)">← Nueva configuración</button>
     </div>`;
 
+  // ── CASO 0 RESULTADOS: ningún producto cumple criterios críticos ──
+  if (n === 0) {
+    sec.innerHTML = `
+      <div class="results-header">
+        <div class="results-eyebrow">// PASO 06 DE 06 — RESULTADOS</div>
+        <div class="results-title">Sin resultados</div>
+        <div class="results-subtitle">No encontramos productos que cumplan con todos tus criterios de búsqueda.</div>
+      </div>
+      ${configBar}
+      <div class="comparison-wrap">
+        <div style="text-align:center;padding:64px 32px;background:var(--surface);border:1px solid var(--border2);border-radius:12px">
+          <div style="font-size:56px;margin-bottom:20px">🔍</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--white);margin-bottom:12px">
+            Ningún producto coincide con tu búsqueda
+          </div>
+          <div style="font-size:15px;color:var(--text2);max-width:520px;margin:0 auto 32px;line-height:1.6">
+            Los criterios de <strong style="color:var(--cyan)">${state.entorno}</strong> + tecnología <strong style="color:var(--cyan)">${state.tecnologia}</strong> no tienen coincidencias en nuestro catálogo actual.<br><br>
+            Prueba ajustando la tecnología de píxel o el rango de pixel pitch para ampliar los resultados.
+          </div>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <button class="btn-next" onclick="goToStep(3)">← Cambiar tecnología</button>
+            <button class="btn-next" style="background:linear-gradient(135deg,var(--orange),#FF3D57)" onclick="goToStep(4)">← Ajustar pixel pitch</button>
+            <button class="btn-back" onclick="goToStep(1)">Nueva configuración</button>
+          </div>
+        </div>
+      </div>
+      <div class="download-section">
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px">¿No encuentras lo que buscas?</div>
+          <div style="font-size:13px;color:var(--text2)">Cuéntanos tu proyecto y te ayudamos a encontrar el producto adecuado.</div>
+        </div>
+        <button class="btn-report" onclick="openModal('modal-report')">⚑ Contactar</button>
+      </div>`;
+    return;
+  }
+
+  // ── CASO 1 o 2 RESULTADOS: hay productos pero menos de 3 ──
+  const headerMsg = n === 3
+    ? `Basado en tu configuración, estos son los 3 modelos más compatibles de nuestro catálogo.`
+    : `Encontramos <strong style="color:var(--cyan)">${n} producto${n!==1?'s':''}</strong> que cumple${n!==1?'n':''} con tus criterios. Nuestro catálogo está en constante crecimiento — pronto habrá más opciones.`;
+
   sec.innerHTML = `
     <div class="results-header">
       <div class="results-eyebrow">// PASO 06 DE 06 — RESULTADOS</div>
-      <div class="results-title">Tus mejores opciones</div>
-      <div class="results-subtitle">Basado en tu configuración, estos son los ${state.top3.length} modelos más compatibles de nuestro catálogo.</div>
+      <div class="results-title">${n === 3 ? 'Tus mejores opciones' : n === 1 ? 'Tu mejor opción' : 'Tus mejores opciones'}</div>
+      <div class="results-subtitle">${headerMsg}</div>
     </div>
     ${configBar}
+    ${n < 3 ? `
+    <div style="background:rgba(255,215,64,.06);border-top:2px solid var(--yellow);border-bottom:1px solid rgba(255,215,64,.2);padding:14px 48px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">⚠️</span>
+      <span style="font-size:14px;color:var(--text2)">
+        Solo encontramos <strong style="color:var(--yellow)">${n} producto${n!==1?'s':''}</strong> que cumple${n!==1?'n':''} exactamente con tu tecnología <strong style="color:var(--cyan)">${state.tecnologia}</strong>.
+        Puedes <button onclick="goToStep(3)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">cambiar la tecnología</button> o
+        <button onclick="goToStep(4)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">ampliar el rango de pitch</button> para ver más opciones.
+      </span>
+    </div>` : ''}
     <div class="comparison-wrap">
-      <div class="section-label">// TOP ${state.top3.length} MODELOS — TABLA COMPARATIVA</div>
+      <div class="section-label">// TOP ${n} MODELO${n!==1?'S':''} — TABLA COMPARATIVA</div>
       <div class="comp-table-wrap" id="comp-table-wrap">${buildCompTable(state.top3)}</div>
     </div>
     <div class="conclusion-wrap" id="conclusion-wrap">
@@ -2029,7 +2096,7 @@ function renderStep6() {
     </div>
     <div class="add-model-section">
       <div class="add-model-title">¿Tienes otro modelo en mente?</div>
-      <div class="add-model-desc">Sube la ficha técnica de cualquier modelo (PDF, Excel o JSON) y lo añadimos a la comparación. La ficha debe contener los mismos parámetros que aparecen en la tabla.</div>
+      <div class="add-model-desc">Sube la ficha técnica de cualquier modelo (PDF, Excel o JSON) y lo añadimos a la comparación.</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
         <label class="btn-upload-file">
           <span>↑</span> Subir ficha técnica

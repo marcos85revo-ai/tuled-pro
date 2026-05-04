@@ -1996,7 +1996,34 @@ function renderStep6() {
   state.top3 = getTop3();
 
   // 🔥 TRACKING: registrar búsqueda completada en Supabase (silencioso)
-  trackBusquedaCompletada(state.top3);
+  try {
+    window.supabaseClient.from('eventos_configurador').insert([{
+      entorno: state.entorno,
+      tecnologia: state.tecnologia,
+      led_type_categoria: state.tecnologia,
+      pitch_min: state.pitchMin,
+      pitch_max: state.pitchMax,
+      refresh_min: state.refreshMin,
+      refresh_max: state.refreshMax,
+      brillo_min: state.brilloMin,
+      brillo_max: state.brilloMax,
+      aspect_ratio: state.aspectRatio !== 'none' ? state.aspectRatio : null,
+      ancho_m: state.ancho,
+      alto_m: state.alto,
+      escenarios: state.escenarios,
+      top1_modelo: state.top3[0]?.modelo || null,
+      top1_fabricante: state.top3[0]?.fabricante || null,
+      top1_score: state.top3[0]?.score || null,
+      top2_modelo: state.top3[1]?.modelo || null,
+      top2_fabricante: state.top3[1]?.fabricante || null,
+      top2_score: state.top3[1]?.score || null,
+      top3_modelo: state.top3[2]?.modelo || null,
+      top3_fabricante: state.top3[2]?.fabricante || null,
+      top3_score: state.top3[2]?.score || null,
+      idioma: navigator.language || 'es',
+      paso_abandono: null,
+    }]).then(() => {}).catch(e => console.warn('Track error:', e.message));
+  } catch(e) { /* silencioso */ }
 
   const sec = document.getElementById('results-section');
   const n = state.top3.length;

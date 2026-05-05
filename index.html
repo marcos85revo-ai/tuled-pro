@@ -1059,6 +1059,7 @@ input[type=range]::-webkit-slider-thumb:hover{
         <div class="admin-nav-item active" onclick="adminSection('dashboard')"><span class="admin-nav-icon">▦</span><span class="admin-nav-label">Dashboard</span></div>
         <div class="admin-nav-item" onclick="adminSection('catalogo')"><span class="admin-nav-icon">◈</span><span class="admin-nav-label">Catálogo</span></div>
         <div class="admin-nav-item" onclick="adminSection('leads')"><span class="admin-nav-icon">◎</span><span class="admin-nav-label">Leads</span><span class="admin-nav-badge" id="leads-badge" style="display:none;background:var(--green)">0</span></div>
+        <div class="admin-nav-item" onclick="adminSection('pliegos')"><span class="admin-nav-icon">📋</span><span class="admin-nav-label">Pliegos</span><span class="admin-nav-badge" id="pliegos-badge" style="display:none;background:var(--orange)">0</span></div>
         <div class="admin-nav-item" onclick="adminSection('notificaciones')"><span class="admin-nav-icon">◉</span><span class="admin-nav-label">Notificaciones</span><span class="admin-nav-badge" id="notif-badge" style="display:none">0</span></div>
         <div class="admin-nav-item" onclick="adminSection('analitica')"><span class="admin-nav-icon">◐</span><span class="admin-nav-label">Analítica</span></div>
         <div class="admin-nav-item" onclick="adminSection('ajustes')"><span class="admin-nav-icon">◌</span><span class="admin-nav-label">Ajustes</span></div>
@@ -3235,6 +3236,10 @@ async function actualizarBadges() {
       .from('leads').select('*',{count:'exact',head:true}).eq('estado','nuevo');
     const lb = document.getElementById('leads-badge');
     if (lb) { lb.textContent = leadsCount>99?'99+':leadsCount; lb.style.display = leadsCount>0?'inline-block':'none'; }
+    const { count: pliegosCount } = await window.supabaseClient
+      .from('pliegos_analizados').select('*',{count:'exact',head:true});
+    const pb = document.getElementById('pliegos-badge');
+    if (pb) { pb.textContent = pliegosCount>99?'99+':pliegosCount; pb.style.display = pliegosCount>0?'inline-block':'none'; }
   } catch(e) { /* silencioso */ }
 }
 
@@ -3252,12 +3257,13 @@ async function doLogout() {
 function adminSection(s) {
   document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
   const items = document.querySelectorAll('.admin-nav-item');
-  const map = {dashboard:0, catalogo:1, leads:2, notificaciones:3, analitica:4, ajustes:5};
+  const map = {dashboard:0, catalogo:1, leads:2, pliegos:3, notificaciones:4, analitica:5, ajustes:6};
   if (items[map[s]]) items[map[s]].classList.add('active');
   const renders = {
     dashboard:      renderAdminDashboard,
     catalogo:       renderAdminCatalogo,
     leads:          renderAdminLeads,
+    pliegos:        renderAdminPliegos,
     notificaciones: renderAdminNotif,
     analitica:      renderAdminAnalytics,
     ajustes:        renderAdminSettings
@@ -3573,6 +3579,284 @@ function exportLeadsCSV() {
   a.click();
   URL.revokeObjectURL(url);
   showToast(`✓ ${leadsData.length} leads exportados a CSV`);
+}
+
+// ═══════════════════════════════════════
+// PLIEGOS
+// ═══════════════════════════════════════
+let pliegosData = [];
+let pliegosSearch = '';
+
+async function renderAdminPliegos(el) {
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
+      <div class="admin-page-title">Pliegos</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-save-settings" onclick="exportPliegosCSV()">↓ Exportar CSV</button>
+      </div>
+    </div>
+    <div class="admin-page-sub" id="pliegos-subtitle">Cargando pliegos analizados...</div>
+
+    <!-- Buscador -->
+    <div style="margin-bottom:20px;position:relative">
+      <input
+        id="pliegos-search"
+        class="settings-input"
+        placeholder="Buscar por organismo o referencia..."
+        oninput="filtrarPliegos(this.value)"
+        style="padding-left:36px;width:100%;max-width:480px">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px">🔍</span>
+    </div>
+
+    <!-- KPIs -->
+    <div class="admin-stats-grid" id="pliegos-kpis" style="margin-bottom:20px">
+      ${[1,2,3,4].map(()=>`<div class="admin-stat-card"><div class="admin-stat-num" style="color:var(--text3)">—</div><div class="admin-stat-label">Cargando...</div></div>`).join('')}
+    </div>
+
+    <!-- Lista -->
+    <div id="pliegos-list">
+      <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:13px;padding:40px;text-align:center">Cargando...</div>
+    </div>
+
+    <!-- Panel detalle -->
+    <div id="pliego-detail-panel" style="display:none"></div>`;
+
+  await loadPliegos();
+}
+
+async function loadPliegos() {
+  const { data, error } = await window.supabaseClient
+    .from('pliegos_analizados')
+    .select('*')
+    .order('analizado_en', { ascending: false });
+
+  if (error) {
+    const sub = document.getElementById('pliegos-subtitle');
+    if (sub) sub.textContent = 'Error cargando pliegos: ' + error.message;
+    return;
+  }
+
+  pliegosData = data || [];
+  renderPliegosKPIs();
+  renderPliegosList(pliegosData);
+  actualizarBadges();
+}
+
+function renderPliegosKPIs() {
+  const total = pliegosData.length;
+  const sub = document.getElementById('pliegos-subtitle');
+  if (sub) sub.textContent = `${total} pliegos analizados · Datos en tiempo real`;
+
+  const conPresupuesto = pliegosData.filter(p => p.presupuesto).length;
+  const paises = [...new Set(pliegosData.map(p => p.pais_ciudad).filter(Boolean))].length;
+  const ahora = new Date();
+  const ultimoMes = pliegosData.filter(p => {
+    if (!p.analizado_en) return false;
+    return (ahora - new Date(p.analizado_en)) < 30*24*60*60*1000;
+  }).length;
+
+  const kpis = document.getElementById('pliegos-kpis');
+  if (!kpis) return;
+  kpis.innerHTML = `
+    <div class="admin-stat-card"><div class="admin-stat-num cyan">${total}</div><div class="admin-stat-label">Pliegos totales</div></div>
+    <div class="admin-stat-card"><div class="admin-stat-num orange">${ultimoMes}</div><div class="admin-stat-label">Último mes</div></div>
+    <div class="admin-stat-card"><div class="admin-stat-num green">${conPresupuesto}</div><div class="admin-stat-label">Con presupuesto</div></div>
+    <div class="admin-stat-card"><div class="admin-stat-num" style="color:var(--yellow)">${paises}</div><div class="admin-stat-label">Países / Ciudades</div></div>`;
+}
+
+function filtrarPliegos(query) {
+  pliegosSearch = query.trim().toLowerCase();
+  const filtered = pliegosSearch
+    ? pliegosData.filter(p =>
+        (p.organismo||'').toLowerCase().includes(pliegosSearch) ||
+        (p.referencia||'').toLowerCase().includes(pliegosSearch) ||
+        (p.pais_ciudad||'').toLowerCase().includes(pliegosSearch)
+      )
+    : pliegosData;
+  renderPliegosList(filtered);
+}
+
+function renderPliegosList(lista) {
+  const wrap = document.getElementById('pliegos-list');
+  if (!wrap) return;
+
+  if (!lista.length) {
+    wrap.innerHTML = `<div style="text-align:center;padding:48px 20px">
+      <div style="font-size:32px;margin-bottom:12px">📋</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--white);margin-bottom:6px">
+        ${pliegosSearch ? 'Sin resultados para "'+pliegosSearch+'"' : 'Sin pliegos analizados todavía'}
+      </div>
+      <div style="font-size:13px;color:var(--text2)">
+        ${pliegosSearch ? 'Prueba con otro término de búsqueda.' : 'Los pliegos aparecerán aquí cuando los usuarios suban documentos al configurador.'}
+      </div>
+    </div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;border:1px solid var(--border2);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--surface2)">
+            ${['Organismo','Referencia','País / Ciudad','Presupuesto','Entorno','Pixel Pitch','Fecha análisis',''].map(h=>
+              `<th style="padding:10px 14px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px;border-bottom:1px solid var(--border2);white-space:nowrap">${h}</th>`
+            ).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map(p => renderPliegoRow(p)).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderPliegoRow(p) {
+  const fecha = p.analizado_en ? new Date(p.analizado_en) : null;
+  const ahora = new Date();
+  let fechaStr = '—';
+  if (fecha) {
+    const diffD = Math.floor((ahora-fecha)/86400000);
+    if (diffD === 0) fechaStr = 'Hoy · '+fecha.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    else if (diffD === 1) fechaStr = 'Ayer';
+    else fechaStr = fecha.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'});
+  }
+
+  const entornoBadge = p.entorno
+    ? `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:3px;
+        background:${p.entorno==='Indoor'?'rgba(0,212,255,.1)':'rgba(255,107,43,.1)'};
+        color:${p.entorno==='Indoor'?'var(--cyan)':'var(--orange)'};
+        border:1px solid ${p.entorno==='Indoor'?'rgba(0,212,255,.2)':'rgba(255,107,43,.2)'}">${p.entorno}</span>`
+    : '<span style="color:var(--text3)">—</span>';
+
+  const presupuesto = p.presupuesto
+    ? `<span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green);font-weight:700">${p.presupuesto}</span>`
+    : '<span style="color:var(--text3)">—</span>';
+
+  return `<tr style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s"
+    onmouseover="this.style.background='var(--surface2)'"
+    onmouseout="this.style.background=''"
+    onclick="abrirDetallePliego('${p.id}')">
+    <td style="padding:11px 14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--white);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.organismo||''}">${p.organismo||'<span style="color:var(--text3)">Sin nombre</span>'}</td>
+    <td style="padding:11px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan)">${p.referencia||'—'}</td>
+    <td style="padding:11px 14px;font-size:13px;color:var(--text2)">${p.pais_ciudad||'—'}</td>
+    <td style="padding:11px 14px">${presupuesto}</td>
+    <td style="padding:11px 14px">${entornoBadge}</td>
+    <td style="padding:11px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)">${p.pixel_pitch||'—'}</td>
+    <td style="padding:11px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);white-space:nowrap">${fechaStr}</td>
+    <td style="padding:11px 14px;text-align:center">
+      <span style="font-size:12px;color:var(--text3)">▶</span>
+    </td>
+  </tr>`;
+}
+
+function abrirDetallePliego(id) {
+  const p = pliegosData.find(x => x.id === id);
+  if (!p) return;
+
+  const panel = document.getElementById('pliego-detail-panel');
+  if (!panel) return;
+
+  // Si ya está abierto el mismo, cerrarlo (toggle)
+  if (panel.style.display !== 'none' && panel.dataset.openId === id) {
+    panel.style.display = 'none';
+    panel.dataset.openId = '';
+    return;
+  }
+
+  panel.dataset.openId = id;
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  const fecha = p.analizado_en ? new Date(p.analizado_en).toLocaleString('es-ES') : '—';
+  const fechaLimite = p.fecha_limite || '—';
+  const fechaResultados = p.fecha_resultados || '—';
+
+  const field = (label, value, color='var(--white)') => `
+    <div class="info-box-row">
+      <span class="info-box-label" style="width:160px;flex-shrink:0">${label}</span>
+      <span class="info-box-value" style="font-size:13px;color:${value ? color : 'var(--text3)'}">
+        ${value || '—'}
+      </span>
+    </div>`;
+
+  panel.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:28px;margin-top:16px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--orange);letter-spacing:3px;margin-bottom:6px">// DETALLE COMPLETO DEL PLIEGO</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--white)">${p.organismo||'Sin organismo'}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan);margin-top:4px">${p.referencia||'Sin referencia'}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">Analizado: ${fecha}</div>
+        </div>
+        <button onclick="document.getElementById('pliego-detail-panel').style.display='none'"
+          style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;flex-shrink:0">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+        <!-- Col 1: Datos administrativos -->
+        <div class="info-box">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:10px">DATOS ADMINISTRATIVOS</div>
+          ${field('Organismo', p.organismo, 'var(--white)')}
+          ${field('Referencia', p.referencia, 'var(--cyan)')}
+          ${field('País / Ciudad', p.pais_ciudad)}
+          ${field('Presupuesto', p.presupuesto, 'var(--green)')}
+          ${field('Fecha límite', fechaLimite, 'var(--orange)')}
+          ${field('Fecha resultados', fechaResultados)}
+          ${field('Plazo entrega', p.plazo_entrega)}
+          ${field('Plazo garantía', p.plazo_garantia)}
+        </div>
+
+        <!-- Col 2: Requisitos técnicos -->
+        <div class="info-box">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:10px">REQUISITOS TÉCNICOS</div>
+          ${field('Entorno', p.entorno, p.entorno==='Indoor'?'var(--cyan)':'var(--orange)')}
+          ${field('Pixel Pitch', p.pixel_pitch, 'var(--cyan)')}
+          ${field('Brillo mínimo', p.brillo_min ? p.brillo_min+' nits' : null, 'var(--yellow)')}
+          ${field('Dimensiones', (p.ancho_m || p.alto_m) ? `${p.ancho_m||'?'}m × ${p.alto_m||'?'}m` : null)}
+          ${field('Tecnología', p.tecnologia)}
+          ${field('Protección IP', p.ip_rating)}
+          ${field('Certificaciones', p.certificaciones)}
+        </div>
+      </div>
+
+      <!-- Otros requisitos -->
+      ${p.otros_requisitos ? `
+      <div class="info-box" style="margin-top:16px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:10px">OTROS REQUISITOS</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-wrap">${p.otros_requisitos}</div>
+      </div>` : ''}
+
+    </div>`;
+}
+
+function exportPliegosCSV() {
+  if (!pliegosData.length) { showToast('No hay pliegos para exportar','error'); return; }
+
+  const cols = ['analizado_en','organismo','referencia','pais_ciudad','presupuesto',
+    'fecha_limite','fecha_resultados','plazo_entrega','plazo_garantia',
+    'entorno','pixel_pitch','brillo_min','ancho_m','alto_m',
+    'tecnologia','ip_rating','certificaciones','otros_requisitos','id'];
+
+  const escape = v => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+
+  const header = cols.join(',');
+  const rows = pliegosData.map(p => cols.map(c => escape(p[c])).join(','));
+  const csv = [header, ...rows].join('\n');
+
+  const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pliegos_tuled_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ ${pliegosData.length} pliegos exportados a CSV`);
 }
 
 // ═══════════════════════════════════════

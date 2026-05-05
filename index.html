@@ -1623,7 +1623,7 @@ function renderStep1(el) {
     <div class="step-nav">
       <span class="step-nav-info font-mono">Selecciona una opción</span>
       <div style="margin-left:auto">
-        <button class="btn-next" ${(!state.entorno && !state.modoPliego)?'disabled':''} onclick="${state.modoPliego ? 'mostrarPantallaPliegos()' : 'nextStep()}"}">
+        <button class="btn-next" ${(!state.entorno && !state.modoPliego)?'disabled':''} onclick="${state.modoPliego ? 'mostrarPantallaPliegos()' : 'nextStep()'}">
           ${state.modoPliego ? 'SUBIR PLIEGO →' : 'SIGUIENTE →'}
         </button>
       </div>

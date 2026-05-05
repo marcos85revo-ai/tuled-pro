@@ -1100,7 +1100,12 @@ input[type=range]::-webkit-slider-thumb:hover{
       <div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,var(--surface2))"></div>
     </div>
     <input class="modal-input" id="dl-name" placeholder="Tu nombre">
-    <input class="modal-input" id="dl-email" type="email" placeholder="Tu email">
+    <input class="modal-input" id="dl-apellidos" placeholder="Tus apellidos">
+    <input class="modal-input" id="dl-email" type="email" placeholder="Tu email *">
+    <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="dl-rgpd" style="margin-top:2px;flex-shrink:0">
+      <span>Acepto el tratamiento de mis datos personales según la <a href="/privacidad" target="_blank" style="color:var(--cyan)">política de privacidad</a>.</span>
+    </label>
     <button class="btn-modal-submit" onclick="submitDownload()">ENVIAR INFORME →</button>
   </div>
 </div>
@@ -1111,12 +1116,17 @@ input[type=range]::-webkit-slider-thumb:hover{
     <div class="modal-title">Reportar un Error</div>
     <div class="modal-subtitle">Descríbenos el problema y adjunta una imagen o documento si es necesario.</div>
     <input class="modal-input" id="rep-name" placeholder="Tu nombre">
-    <input class="modal-input" id="rep-email" type="email" placeholder="Tu email">
+    <input class="modal-input" id="rep-apellidos" placeholder="Tus apellidos">
+    <input class="modal-input" id="rep-email" type="email" placeholder="Tu email *">
     <textarea class="modal-textarea" id="rep-text" placeholder="Describe el error..." maxlength="1000" oninput="document.getElementById('rep-count').textContent=this.value.length+'/1000'"></textarea>
     <div class="modal-char-count" id="rep-count">0/1000</div>
     <label class="btn-upload-file" style="width:100%;justify-content:center;margin-bottom:12px">
       <span>📎</span> Adjuntar imagen o documento
       <input type="file" accept=".png,.jpg,.pdf" style="display:none">
+    </label>
+    <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:12px;color:var(--text2);cursor:pointer">
+      <input type="checkbox" id="rep-rgpd" style="margin-top:2px;flex-shrink:0">
+      <span>Acepto el tratamiento de mis datos personales según la <a href="/privacidad" target="_blank" style="color:var(--cyan)">política de privacidad</a>.</span>
     </label>
     <button class="btn-modal-submit" onclick="submitReport()">ENVIAR REPORTE →</button>
   </div>
@@ -2276,7 +2286,7 @@ function renderStep6() {
           <input type="file" accept=".pdf,.xlsx,.json" style="display:none" onchange="handleExternalFile(this)">
         </label>
         <span id="ext-filename" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)"></span>
-        <button class="btn-add-compare" id="btn-add-compare" style="display:none" onclick="openSelectModels()">AÑADIR Y COMPARAR →</button>
+        <button class="btn-add-compare" id="btn-add-compare" style="display:none" onclick="openFichaLeadModal()">AÑADIR Y COMPARAR →</button>
       </div>
     </div>
     <div class="download-section">
@@ -3028,7 +3038,89 @@ function handleExternalFile(input) {
     certificaciones:null,emc:null,vida_util_horas:null,garantia_años:null,
     score:'—'
   };
+  // Guardar referencia al archivo para el modal
+  state._fichaFile = f;
   showToast('Ficha técnica cargada. Selecciona los modelos a comparar.');
+}
+
+// Modal para capturar datos del usuario al subir ficha técnica
+function openFichaLeadModal() {
+  // Si ya existe el modal, mostrarlo directamente
+  let m = document.getElementById('modal-ficha-lead');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'modal-ficha-lead';
+    m.className = 'modal-overlay';
+    m.innerHTML = `
+      <div class="modal">
+        <button class="modal-close" onclick="closeModal('modal-ficha-lead')">✕</button>
+        <div class="modal-title">Añadir ficha técnica</div>
+        <div class="modal-subtitle">Deja tus datos para guardar la comparación y recibir el análisis completo.</div>
+        <input class="modal-input" id="fl-nombre" placeholder="Nombre">
+        <input class="modal-input" id="fl-apellidos" placeholder="Apellidos">
+        <input class="modal-input" id="fl-email" type="email" placeholder="Email *">
+        <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:12px;color:var(--text2);cursor:pointer">
+          <input type="checkbox" id="fl-rgpd" style="margin-top:2px;flex-shrink:0">
+          <span>Acepto el tratamiento de mis datos personales según la <a href="/privacidad" target="_blank" style="color:var(--cyan)">política de privacidad</a>.</span>
+        </label>
+        <button class="btn-modal-submit" onclick="submitFichaLead()">AÑADIR Y COMPARAR →</button>
+      </div>`;
+    m.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('open'); });
+    document.body.appendChild(m);
+  }
+  m.classList.add('open');
+}
+
+async function submitFichaLead() {
+  const email = document.getElementById('fl-email').value.trim();
+  const nombre = document.getElementById('fl-nombre').value.trim();
+  const apellidos = document.getElementById('fl-apellidos').value.trim();
+  const rgpd = document.getElementById('fl-rgpd').checked;
+
+  if (!email) { showToast('Introduce tu email','error'); return; }
+  if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
+
+  closeModal('modal-ficha-lead');
+
+  try {
+    const leadId = await upsertLead(nombre, apellidos, email, {
+      entorno: state.entorno,
+      tecnologia: state.tecnologia,
+      escenarios: state.escenarios,
+      pitch_min: state.pitchMin,
+      pitch_max: state.pitchMax,
+    });
+
+    // Subir archivo a Supabase Storage si existe
+    let archivoUrl = null;
+    const f = state._fichaFile;
+    if (f) {
+      const ext = f.name.split('.').pop();
+      const path = `fichas/${leadId}_${Date.now()}.${ext}`;
+      const { data: uploadData } = await window.supabaseClient.storage
+        .from('documentos-leads')
+        .upload(path, f, { upsert: true });
+      if (uploadData) {
+        const { data: urlData } = window.supabaseClient.storage
+          .from('documentos-leads').getPublicUrl(path);
+        archivoUrl = urlData?.publicUrl || null;
+      }
+    }
+
+    await registrarAccion(leadId, 'ficha_subida',
+      `Subió ficha técnica: ${f?.name || 'archivo'} · ${state.entorno} · ${state.tecnologia}`,
+      { entorno: state.entorno, tecnologia: state.tecnologia },
+      archivoUrl, f?.name
+    );
+
+    await crearNotificacionAdmin('ficha_subida', 'Ficha técnica subida',
+      `${nombre||'Usuario'} (${email}) subió: ${f?.name || 'archivo'}`,
+      { email, nombre, lead_id: leadId, archivo: f?.name, archivo_url: archivoUrl }
+    );
+  } catch(e) { console.warn('Ficha lead error:', e.message); }
+
+  // Continuar con la comparación
+  openSelectModels();
 }
 
 function openSelectModels() {
@@ -3088,49 +3180,126 @@ function openModal(id) {
 }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+// ═══════════════════════════════════════
+// SISTEMA DE LEADS UNIFICADO
+// Upsert por email: si ya existe el lead, actualiza. Si no, crea.
+// Registra cada acción en lead_acciones.
+// ═══════════════════════════════════════
+
+async function upsertLead(nombre, apellidos, email, extraData = {}) {
+  // 1. Buscar si el lead ya existe por email
+  const { data: existing } = await window.supabaseClient
+    .from('leads')
+    .select('id, acciones')
+    .eq('email', email)
+    .maybeSingle();
+
+  const now = new Date().toISOString();
+
+  if (existing) {
+    // Actualizar ultima_accion y datos de config si son mejores
+    const updates = { ultima_accion: now };
+    if (nombre) updates.nombre = nombre;
+    if (apellidos) updates.apellidos = apellidos;
+    // Actualizar config del configurador si hay datos nuevos
+    if (extraData.entorno) updates.entorno = extraData.entorno;
+    if (extraData.tecnologia) updates.tecnologia = extraData.tecnologia;
+    if (extraData.escenarios) updates.escenarios = extraData.escenarios;
+    if (extraData.pitch_min) updates.pitch_min = extraData.pitch_min;
+    if (extraData.pitch_max) updates.pitch_max = extraData.pitch_max;
+    if (extraData.brillo_min) updates.brillo_min = extraData.brillo_min;
+    if (extraData.brillo_max) updates.brillo_max = extraData.brillo_max;
+    if (extraData.refresh_min) updates.refresh_min = extraData.refresh_min;
+    if (extraData.refresh_max) updates.refresh_max = extraData.refresh_max;
+    if (extraData.ancho_m) updates.ancho_m = extraData.ancho_m;
+    if (extraData.alto_m) updates.alto_m = extraData.alto_m;
+    if (extraData.top1_fabricante) { updates.top1_fabricante=extraData.top1_fabricante; updates.top1_modelo=extraData.top1_modelo; updates.top1_score=extraData.top1_score; }
+    if (extraData.top2_fabricante) { updates.top2_fabricante=extraData.top2_fabricante; updates.top2_modelo=extraData.top2_modelo; updates.top2_score=extraData.top2_score; }
+    if (extraData.top3_fabricante) { updates.top3_fabricante=extraData.top3_fabricante; updates.top3_modelo=extraData.top3_modelo; updates.top3_score=extraData.top3_score; }
+    if (extraData.conclusion_ia) updates.conclusion_ia = extraData.conclusion_ia;
+
+    await window.supabaseClient.from('leads').update(updates).eq('id', existing.id);
+    return existing.id;
+  } else {
+    // Crear nuevo lead
+    const { data: nuevo, error } = await window.supabaseClient.from('leads').insert([{
+      nombre: nombre || null,
+      apellidos: apellidos || null,
+      email,
+      estado: 'nuevo',
+      ultima_accion: now,
+      ...extraData
+    }]).select('id').single();
+    if (error) throw error;
+    return nuevo.id;
+  }
+}
+
+async function registrarAccion(leadId, tipo, descripcion, contenido = {}, archivoUrl = null, archivoNombre = null) {
+  await window.supabaseClient.from('lead_acciones').insert([{
+    lead_id: leadId,
+    tipo,
+    descripcion,
+    archivo_url: archivoUrl,
+    archivo_nombre: archivoNombre,
+    contenido
+  }]);
+}
+
+async function crearNotificacionAdmin(tipo, titulo, descripcion, datos = {}) {
+  await window.supabaseClient.from('notificaciones_admin').insert([{
+    tipo, titulo, descripcion, datos
+  }]);
+}
+
 async function submitDownload() {
   const email = document.getElementById('dl-email').value.trim();
   const nombre = document.getElementById('dl-name').value.trim();
+  const apellidos = document.getElementById('dl-apellidos')?.value?.trim() || '';
+  const rgpd = document.getElementById('dl-rgpd')?.checked;
+
   if (!email) { showToast('Introduce tu email','error'); return; }
+  if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
 
   const btn = document.querySelector('#modal-download .btn-modal-submit');
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
 
-  // Guardar lead completo en Supabase
   try {
-    await window.supabaseClient.from('leads').insert([{
-      nombre: nombre || null,
-      email,
-      entorno:      state.entorno,
-      tecnologia:   state.tecnologia,
-      escenarios:   state.escenarios,
-      pitch_min:    state.pitchMin,
-      pitch_max:    state.pitchMax,
-      brillo_min:   state.brilloMin,
-      brillo_max:   state.brilloMax,
-      refresh_min:  state.refreshMin,
-      refresh_max:  state.refreshMax,
-      ancho_m:      state.ancho,
-      alto_m:       state.alto,
+    const configData = {
+      entorno: state.entorno,
+      tecnologia: state.tecnologia,
+      escenarios: state.escenarios,
+      pitch_min: state.pitchMin,
+      pitch_max: state.pitchMax,
+      brillo_min: state.brilloMin,
+      brillo_max: state.brilloMax,
+      refresh_min: state.refreshMin,
+      refresh_max: state.refreshMax,
+      ancho_m: state.ancho,
+      alto_m: state.alto,
       top1_fabricante: state.top3[0]?.fabricante || null,
-      top1_modelo:     state.top3[0]?.modelo     || null,
-      top1_score:      state.top3[0]?.score      || null,
+      top1_modelo: state.top3[0]?.modelo || null,
+      top1_score: state.top3[0]?.score || null,
       top2_fabricante: state.top3[1]?.fabricante || null,
-      top2_modelo:     state.top3[1]?.modelo     || null,
-      top2_score:      state.top3[1]?.score      || null,
+      top2_modelo: state.top3[1]?.modelo || null,
+      top2_score: state.top3[1]?.score || null,
       top3_fabricante: state.top3[2]?.fabricante || null,
-      top3_modelo:     state.top3[2]?.modelo     || null,
-      top3_score:      state.top3[2]?.score      || null,
-      conclusion_ia:   conclusionTexto || null,
-      estado: 'nuevo',
-    }]);
-    // También crear notificación para el admin
-    await window.supabaseClient.from('notificaciones_admin').insert([{
-      tipo: 'pdf_solicitado',
-      titulo: 'Informe PDF solicitado',
-      descripcion: `${nombre||'Usuario'} (${email}) solicitó el informe comparativo · ${state.entorno} · ${state.tecnologia} · ${(state.escenarios||[]).join(', ')}`,
-      datos: { email, nombre, entorno: state.entorno, tecnologia: state.tecnologia, conclusion: conclusionTexto || null }
-    }]);
+      top3_modelo: state.top3[2]?.modelo || null,
+      top3_score: state.top3[2]?.score || null,
+      conclusion_ia: conclusionTexto || null,
+    };
+
+    const leadId = await upsertLead(nombre, apellidos, email, configData);
+
+    await registrarAccion(leadId, 'pdf_resultados',
+      `Solicitó informe PDF · ${state.entorno} · ${state.tecnologia} · ${(state.escenarios||[]).join(', ')}`,
+      { configuracion: configData, conclusion: conclusionTexto || null }
+    );
+
+    await crearNotificacionAdmin('pdf_solicitado', 'Informe PDF solicitado',
+      `${nombre||'Usuario'} (${email}) solicitó el informe comparativo · ${state.entorno} · ${state.tecnologia}`,
+      { email, nombre, lead_id: leadId, entorno: state.entorno, tecnologia: state.tecnologia }
+    );
   } catch(e) { console.warn('Lead save error:', e.message); }
 
   if (btn) { btn.textContent = 'ENVIAR INFORME →'; btn.disabled = false; }
@@ -3141,16 +3310,27 @@ async function submitDownload() {
 async function submitReport() {
   const email = document.getElementById('rep-email').value.trim();
   const nombre = document.getElementById('rep-name').value.trim();
+  const apellidos = document.getElementById('rep-apellidos')?.value?.trim() || '';
   const texto = document.getElementById('rep-text').value.trim();
+  const rgpd = document.getElementById('rep-rgpd')?.checked;
+
   if (!email) { showToast('Introduce tu email','error'); return; }
+  if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
+
   try {
-    await window.supabaseClient.from('notificaciones_admin').insert([{
-      tipo: 'error_reportado',
-      titulo: 'Error reportado por usuario',
-      descripcion: `${nombre||'Usuario'} (${email}): "${texto?.substring(0,120)}"`,
-      datos: { email, nombre, texto }
-    }]);
+    const leadId = await upsertLead(nombre, apellidos, email, {});
+
+    await registrarAccion(leadId, 'error_reportado',
+      `Reportó un error: "${texto?.substring(0, 120)}"`,
+      { texto, config_entorno: state.entorno, config_tecnologia: state.tecnologia }
+    );
+
+    await crearNotificacionAdmin('error_reportado', 'Error reportado por usuario',
+      `${nombre||'Usuario'} (${email}): "${texto?.substring(0,120)}"`,
+      { email, nombre, lead_id: leadId, texto }
+    );
   } catch(e) { console.warn('Report error:', e.message); }
+
   closeModal('modal-report');
   showToast('✓ Reporte enviado. Gracias por tu feedback.');
 }
@@ -3607,7 +3787,7 @@ function renderLeadsTable(filtro) {
       <table style="width:100%;border-collapse:collapse">
         <thead>
           <tr style="background:var(--surface2)">
-            ${['Fecha','Nombre','Email','Config. resumida','Top resultado','Estado','Acciones'].map(h=>
+            ${['Fecha','Nombre / Email','Config. resumida','Top resultado','Acciones','Estado',''].map(h=>
               `<th style="padding:10px 14px;text-align:left;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px;border-bottom:1px solid var(--border2);white-space:nowrap">${h}</th>`
             ).join('')}
           </tr>
@@ -3617,6 +3797,26 @@ function renderLeadsTable(filtro) {
         </tbody>
       </table>
     </div>`;
+
+  // Cargar conteo de acciones de forma asíncrona para no bloquear el render
+  loadAccionesCounts(filtered.map(l => l.id));
+}
+
+async function loadAccionesCounts(leadIds) {
+  if (!leadIds.length) return;
+  try {
+    const { data } = await window.supabaseClient
+      .from('lead_acciones')
+      .select('lead_id')
+      .in('lead_id', leadIds);
+    if (!data) return;
+    // Contar por lead_id
+    const counts = data.reduce((acc, a) => { acc[a.lead_id] = (acc[a.lead_id]||0)+1; return acc; }, {});
+    leadIds.forEach(id => {
+      const el = document.getElementById('acc-count-'+id);
+      if (el) el.textContent = (counts[id]||0) + ' acc.';
+    });
+  } catch(e) { /* silencioso */ }
 }
 
 function renderLeadRow(lead) {
@@ -3641,12 +3841,17 @@ function renderLeadRow(lead) {
 
   return `<tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
     <td style="padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);white-space:nowrap">${fechaStr}</td>
-    <td style="padding:10px 14px;font-size:13px;color:var(--white);white-space:nowrap">${lead.nombre||'<span style="color:var(--text3)">Sin nombre</span>'}</td>
-    <td style="padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--cyan)">
-      <a href="mailto:${lead.email}" style="color:inherit;text-decoration:none" title="Enviar email">${lead.email}</a>
+    <td style="padding:10px 14px;white-space:nowrap">
+      <div style="font-size:13px;color:var(--white)">${[lead.nombre, lead.apellidos].filter(Boolean).join(' ') || '<span style="color:var(--text3)">Sin nombre</span>'}</div>
+      <a href="mailto:${lead.email}" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan);text-decoration:none">${lead.email}</a>
     </td>
-    <td style="padding:10px 14px;font-size:11px;color:var(--text2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${config}">${config||'—'}</td>
+    <td style="padding:10px 14px;font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${config}">${config||'—'}</td>
     <td style="padding:10px 14px;font-size:12px;color:var(--white)">${topResult}</td>
+    <td style="padding:10px 14px;text-align:center">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:20px;
+        background:rgba(41,182,246,.1);color:var(--cyan);border:1px solid rgba(41,182,246,.2)"
+        id="acc-count-${lead.id}">—</span>
+    </td>
     <td style="padding:10px 14px">
       <select onchange="cambiarEstadoLead('${lead.id}',this.value)"
         style="background:${est.bg};color:${est.color};border:1px solid ${est.border};border-radius:4px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;outline:none">
@@ -3656,8 +3861,7 @@ function renderLeadRow(lead) {
       </select>
     </td>
     <td style="padding:10px 14px;white-space:nowrap">
-      <button class="btn-icon edit" title="Ver detalles y añadir nota" onclick="abrirDetalleLead('${lead.id}')">📋</button>
-      <a href="mailto:${lead.email}?subject=Consulta sobre pantalla LED - ComparaTuLED" class="btn-icon edit" title="Enviar email" style="text-decoration:none;display:inline-block">✉</a>
+      <button class="btn-icon edit" title="Ver perfil completo" onclick="abrirDetalleLead('${lead.id}')">👤 Perfil</button>
     </td>
   </tr>`;
 }
@@ -3674,37 +3878,65 @@ async function cambiarEstadoLead(id, nuevoEstado) {
   showToast(`✓ Estado actualizado a "${LEAD_ESTADOS[nuevoEstado]?.label}"`);
 }
 
-function abrirDetalleLead(id) {
+async function abrirDetalleLead(id) {
   const lead = leadsData.find(l=>l.id===id);
-  if (!lead) return;
+  if (!lead) {
+    // Intentar cargar desde Supabase si no está en memoria (venimos de notificaciones)
+    const { data } = await window.supabaseClient.from('leads').select('*').eq('id', id).maybeSingle();
+    if (!data) { showToast('Lead no encontrado', 'error'); return; }
+    leadsData.push(data);
+    return abrirDetalleLead(id);
+  }
+
   const panel = document.getElementById('lead-detail-panel');
-  if (!panel) return;
+  if (!panel) {
+    // Si venimos de notificaciones, navegar a leads y luego abrir el perfil
+    adminSection('leads');
+    setTimeout(() => abrirDetalleLead(id), 500);
+    return;
+  }
 
   const est = LEAD_ESTADOS[lead.estado] || LEAD_ESTADOS.nuevo;
   const fecha = new Date(lead.creado_en).toLocaleString('es-ES');
+  const ultimaAccion = lead.ultima_accion ? new Date(lead.ultima_accion).toLocaleString('es-ES') : '—';
   const escenarios = (lead.escenarios||[]).join(', ') || '—';
 
+  const TIPO_ACCIONES = {
+    pdf_resultados: { icon:'📄', label:'Informe PDF solicitado', color:'var(--cyan)' },
+    ficha_subida:   { icon:'📎', label:'Ficha técnica subida', color:'var(--orange)' },
+    pliego_subido:  { icon:'📋', label:'Pliego subido', color:'var(--green)' },
+    error_reportado:{ icon:'⚑',  label:'Error reportado', color:'var(--red)' },
+  };
+
   panel.style.display = 'block';
-  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
   panel.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:28px;margin-top:20px">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:28px;margin-top:20px;animation:fadeSlideIn .3s ease">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:var(--white)">${lead.nombre||'Sin nombre'}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:4px">// PERFIL DEL LEAD</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--white)">${[lead.nombre, lead.apellidos].filter(Boolean).join(' ') || 'Sin nombre'}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--cyan);margin-top:2px">
             <a href="mailto:${lead.email}" style="color:inherit">${lead.email}</a>
           </div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">${fecha}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">
+            Registro: ${fecha} · Última acción: ${ultimaAccion}
+          </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span style="padding:4px 12px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:11px;
-            background:${est.bg};color:${est.color};border:1px solid ${est.border}">${est.label}</span>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select onchange="cambiarEstadoLead('${lead.id}',this.value)"
+            style="background:${est.bg};color:${est.color};border:1px solid ${est.border};border-radius:8px;padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;outline:none">
+            ${Object.entries(LEAD_ESTADOS).map(([k,v])=>
+              `<option value="${k}" ${lead.estado===k?'selected':''} style="background:var(--surface2);color:var(--white)">${v.label}</option>`
+            ).join('')}
+          </select>
+          <a href="mailto:${lead.email}?subject=Tu búsqueda de pantalla LED en ComparaTuLED"
+            class="btn-download" style="text-decoration:none;padding:8px 16px;font-size:13px">✉ Email</a>
           <button onclick="document.getElementById('lead-detail-panel').style.display='none'"
             style="background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer">✕</button>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="info-box">
           <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:10px">CONFIGURACIÓN BUSCADA</div>
           ${[
@@ -3735,6 +3967,14 @@ function abrirDetalleLead(id) {
         </div>
       </div>
 
+      <!-- Historial de acciones -->
+      <div style="margin-bottom:20px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:10px">HISTORIAL DE ACCIONES</div>
+        <div id="lead-acciones-${lead.id}" style="display:flex;flex-direction:column;gap:8px">
+          <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">Cargando historial...</div>
+        </div>
+      </div>
+
       <!-- Notas -->
       <div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:8px">NOTAS INTERNAS</div>
@@ -3746,17 +3986,54 @@ function abrirDetalleLead(id) {
           placeholder="Añade notas sobre este lead: empresa, interés, seguimiento pendiente...">${lead.notas||''}</textarea>
         <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
           <button class="btn-next" style="padding:10px 22px;font-size:15px" onclick="guardarNotaLead('${lead.id}')">GUARDAR NOTA →</button>
-          <select onchange="cambiarEstadoLead('${lead.id}',this.value);this.closest('.info-box,div').querySelector('span').textContent=this.options[this.selectedIndex].text"
-            style="background:var(--surface2);border:1px solid var(--border2);color:var(--white);padding:10px 14px;border-radius:6px;font-family:'Barlow',sans-serif;font-size:14px;outline:none">
-            ${Object.entries(LEAD_ESTADOS).map(([k,v])=>
-              `<option value="${k}" ${lead.estado===k?'selected':''} style="background:var(--surface2)">${v.label}</option>`
-            ).join('')}
-          </select>
-          <a href="mailto:${lead.email}?subject=Tu búsqueda de pantalla LED en ComparaTuLED"
-            class="btn-download" style="text-decoration:none;padding:10px 18px;font-size:14px">✉ Enviar email</a>
         </div>
       </div>
     </div>`;
+
+  panel.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+  // Cargar historial de acciones desde Supabase
+  const { data: acciones } = await window.supabaseClient
+    .from('lead_acciones')
+    .select('*')
+    .eq('lead_id', lead.id)
+    .order('creado_en', { ascending: false });
+
+  const accionesEl = document.getElementById(`lead-acciones-${lead.id}`);
+  if (!accionesEl) return;
+
+  if (!acciones || !acciones.length) {
+    accionesEl.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px 18px;font-size:13px;color:var(--text3)">
+      Sin acciones registradas todavía. Las acciones aparecerán aquí cuando el usuario solicite informes, suba ficheros o reporte errores.
+    </div>`;
+    return;
+  }
+
+  accionesEl.innerHTML = acciones.map(a => {
+    const t = TIPO_ACCIONES[a.tipo] || { icon:'◉', label: a.tipo, color:'var(--text2)' };
+    const fechaA = new Date(a.creado_en).toLocaleString('es-ES');
+    return `
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px">
+      <span style="font-size:18px;flex-shrink:0;margin-top:1px">${t.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:${t.color}">${t.label}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">${fechaA}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.4">${a.descripcion||''}</div>
+        ${a.archivo_url ? `
+        <div style="margin-top:6px">
+          <a href="${a.archivo_url}" target="_blank"
+            style="display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;
+              color:var(--cyan);text-decoration:none;border:1px solid rgba(41,182,246,.3);border-radius:4px;padding:4px 10px;
+              background:var(--cyan-dim);transition:background .18s"
+            onmouseover="this.style.background='rgba(41,182,246,.18)'" onmouseout="this.style.background='var(--cyan-dim)'">
+            ↓ ${a.archivo_nombre || 'Descargar archivo'}
+          </a>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function guardarNotaLead(id) {
@@ -4119,31 +4396,100 @@ async function deleteProduct(id, name) {
   await refreshCatalogoList();
 }
 
-function renderAdminNotif(el) {
-  const notifs = [
-    {unread:true, text:'Usuario subió ficha técnica externa: <strong>Unilumin-UpadIV-P2.0.pdf</strong>. Config: Indoor · 5×3m · SMD · P2.0–P3.0 · Retail', time:'Hoy 14:32'},
-    {unread:true, text:'Nuevo informe PDF solicitado por <strong>juan@empresa.com</strong> — comparativa de 3 modelos Indoor', time:'Hoy 11:18'},
-    {unread:true, text:'Reporte de error enviado por <strong>carlos@avpro.es</strong>: "La tabla no muestra el peso total correctamente"', time:'Ayer 16:45'},
-    {unread:false, text:'Usuario subió ficha técnica: <strong>ABSEN-A2.5-Datasheet.xlsx</strong>. Config: Indoor · 8×2.25m · SMD · P2.0–P2.5 · Broadcast', time:'Ayer 09:22'},
-    {unread:false, text:'Informe PDF solicitado por <strong>marta@design.com</strong>', time:'15 Mar 2025'},
-  ];
+async function renderAdminNotif(el) {
   el.innerHTML = `
-    <div class="admin-page-title">Notificaciones</div>
-    <div class="admin-page-sub">3 notificaciones sin leer</div>
-    <div class="notif-list">
-      ${notifs.map(n => `
-      <div class="notif-item ${n.unread?'unread':''}">
-        <div class="notif-dot ${n.unread?'':'read'}"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:4px">
+      <div class="admin-page-title">Notificaciones</div>
+      <button class="btn-save-settings" onclick="marcarTodasLeidas()">Marcar todas como leídas</button>
+    </div>
+    <div class="admin-page-sub" id="notif-subtitle">Cargando...</div>
+    <div class="notif-list" id="notif-list">
+      <div style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:13px;padding:40px;text-align:center">Cargando notificaciones...</div>
+    </div>`;
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from('notificaciones_admin')
+      .select('*')
+      .order('creado_en', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+
+    const notifs = data || [];
+    const unread = notifs.filter(n => !n.leida).length;
+
+    const subtitle = document.getElementById('notif-subtitle');
+    if (subtitle) subtitle.textContent = `${notifs.length} notificaciones · ${unread} sin leer`;
+
+    const list = document.getElementById('notif-list');
+    if (!list) return;
+
+    if (!notifs.length) {
+      list.innerHTML = `<div style="text-align:center;padding:48px 20px">
+        <div style="font-size:32px;margin-bottom:12px">🔔</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--white);margin-bottom:6px">Sin notificaciones todavía</div>
+        <div style="font-size:13px;color:var(--text2)">Aparecerán aquí cuando los usuarios realicen acciones en el configurador.</div>
+      </div>`;
+      return;
+    }
+
+    const TIPO_LABELS = {
+      pdf_solicitado: { icon: '📄', label: 'Informe PDF' },
+      ficha_subida: { icon: '📎', label: 'Ficha técnica' },
+      pliego_subido: { icon: '📋', label: 'Pliego subido' },
+      error_reportado: { icon: '⚑', label: 'Error reportado' },
+    };
+
+    list.innerHTML = notifs.map(n => {
+      const fecha = new Date(n.creado_en);
+      const ahora = new Date();
+      const diffD = Math.floor((ahora-fecha)/86400000);
+      const fechaStr = diffD===0
+        ? 'Hoy · '+fecha.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})
+        : diffD===1 ? 'Ayer' : fecha.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'});
+      const tipo = TIPO_LABELS[n.tipo] || { icon:'◉', label: n.tipo };
+      const leadId = n.datos?.lead_id;
+
+      return `
+      <div class="notif-item ${!n.leida?'unread':''}" id="notif-${n.id}">
+        <div class="notif-dot ${!n.leida?'':'read'}"></div>
         <div style="flex:1">
-          <div class="notif-text">${n.text}</div>
-          <div class="notif-time">${n.time}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-size:14px">${tipo.icon}</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--white)">${n.titulo||tipo.label}</span>
+          </div>
+          <div class="notif-text">${n.descripcion||''}</div>
+          <div class="notif-time">${fechaStr}</div>
           <div class="notif-actions">
-            ${n.text.includes('ficha') ? `<button class="notif-btn dl" onclick="showToast('Descargando ficha técnica...')">↓ Descargar ficha</button>` : ''}
-            <button class="notif-btn" onclick="showToast('Marcado como leído')">Marcar leído</button>
+            ${n.datos?.archivo_url ? `<button class="notif-btn dl" onclick="window.open('${n.datos.archivo_url}','_blank')">↓ Descargar archivo</button>` : ''}
+            ${leadId ? `<button class="notif-btn dl" onclick="adminSection('leads');setTimeout(()=>abrirDetalleLead('${leadId}'),400)" style="background:rgba(0,230,168,.1);color:var(--green)">👤 Ver perfil del lead</button>` : ''}
+            ${!n.leida ? `<button class="notif-btn" onclick="marcarLeida('${n.id}')">Marcar leída</button>` : ''}
           </div>
         </div>
-      </div>`).join('')}
-    </div>`;
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    const list = document.getElementById('notif-list');
+    if (list) list.innerHTML = `<div style="color:var(--red);padding:20px">Error: ${e.message}</div>`;
+  }
+}
+
+async function marcarLeida(id) {
+  await window.supabaseClient.from('notificaciones_admin').update({ leida: true }).eq('id', id);
+  const item = document.getElementById('notif-'+id);
+  if (item) { item.classList.remove('unread'); item.querySelector('.notif-dot')?.classList.add('read'); }
+  const btn = item?.querySelector('.notif-btn:last-child');
+  if (btn && btn.textContent.includes('Marcar')) btn.remove();
+  actualizarBadges();
+}
+
+async function marcarTodasLeidas() {
+  await window.supabaseClient.from('notificaciones_admin').update({ leida: true }).eq('leida', false);
+  showToast('✓ Todas las notificaciones marcadas como leídas');
+  actualizarBadges();
+  adminSection('notificaciones');
 }
 
 function renderAdminAnalytics(el) {

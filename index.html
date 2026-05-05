@@ -1021,17 +1021,40 @@ window.supabaseClient = supabaseClient;
 // ═══════════════════════════════════════
 let CATALOGUE = [];
 
+// ── Normaliza led_type + tecnologia → categoría SMD / COB / GOB / MiniLED ──
+// Esta función es CRÍTICA: su resultado se usa como filtro duro en el scoring.
+// Si led_type_categoria no coincide con lo que el usuario seleccionó → producto excluido.
+// ── Normaliza led_type → categoría SMD / COB / GOB / MiniLED ──
+// IMPORTANTE: solo usa led_type, NO tecnologia.
+// Esto evita que valores como "Flip-Chip SMD 1010" en tecnologia
+// clasifiquen erróneamente un producto SMD como COB.
+function normalizeLedCategory(ledType) {
+  const src = (ledType || '').toUpperCase().trim();
+  if (!src) return null; // sin dato → neutro, no filtrar
+  if (src === 'COB' || src.includes('COB')) return 'COB';
+  if (src === 'SMD' || src.includes('SMD')) return 'SMD';
+  if (src.includes('GOB')) return 'GOB';
+  if (src.includes('MINI') && src.includes('LED')) return 'MiniLED';
+  return null; // valor desconocido → neutro
+}
+
 function mapProductFromDb(row) {
+  // Calcular categoría normalizada SOLO desde led_type (no tecnologia)
+  const led_type_categoria = normalizeLedCategory(row.led_type);
+
   return {
     id: row.id,
     fabricante: row.fabricante || '',
-    // FIX: la tabla no tiene columna 'serie'. Se usa producto_uid como referencia interna
-    // y se deja serie vacío para que no rompa la tabla comparativa.
     serie: '',
     modelo: row.modelo || '',
 
     tipo_entorno: row.entorno ? [row.entorno] : [],
     tecnologia: row.tecnologia || '',
+
+    // CAMPO CRÍTICO — usado por scoreProduct como filtro duro SMD/COB
+    led_type: row.led_type || null,
+    led_type_categoria,
+
     pitch_mm: row.pixel_pitch_mm ?? null,
 
     brillo_max_nits: row.brillo_nits ?? null,
@@ -1042,26 +1065,20 @@ function mapProductFromDb(row) {
     angulo_vision_v: row.angulo_v ?? null,
     profundidad_grises_bit: row.grises_bit ?? null,
 
-    // FIX: columnas que no existen en DB → null (se mostrará N/D en tabla)
     gama_color_ntsc: null,
     calibracion_fabrica: null,
 
-    // FIX: la tabla usa panel_ancho/alto para el panel físico total,
-    // y modulo_ancho/alto para el módulo. Usamos los del módulo (correcto para la tabla).
     modulo_ancho_mm: row.modulo_ancho_mm ?? null,
     modulo_alto_mm: row.modulo_alto_mm ?? null,
     profundidad_display_mm: row.panel_profundidad_mm ?? null,
 
-    // Resolución real del panel completo (datos disponibles en DB)
     panel_pixeles_h: row.panel_pixeles_h ?? null,
     panel_pixeles_v: row.panel_pixeles_v ?? null,
 
-    // IP: combina frontal y trasero si ambos existen
     ip_rating: (row.ip_frontal && row.ip_trasero)
       ? `${row.ip_frontal} / ${row.ip_trasero}`
       : (row.ip_frontal || row.ip_trasero || null),
 
-    // FIX: la tabla usa panel_peso_kg, no peso_modulo_kg
     peso_modulo_kg: row.panel_peso_kg ?? null,
 
     consumo_max_w_m2: row.consumo_max_w_m2 ?? null,
@@ -1070,16 +1087,12 @@ function mapProductFromDb(row) {
     calor_max_btu: row.calor_max_btu_h_m2 ?? null,
     calor_avg_btu: row.calor_avg_btu_h_m2 ?? null,
 
-    // Mantenimiento: usa modulo primero, PSU como fallback
     mantenimiento: row.mantenimiento_modulo || row.mantenimiento_psu || null,
 
-    // Certificaciones: la DB las guarda como texto separado por comas
     certificaciones: row.certificaciones
       ? row.certificaciones.split(',').map(v => v.trim())
       : null,
 
-    // Campos adicionales disponibles en DB que la tabla comparativa puede mostrar
-    led_type: row.led_type || null,
     temperatura_color_k: row.temperatura_color_k ?? null,
     temp_operacion: row.temp_operacion || null,
     humedad_operacion: row.humedad_operacion || null,
@@ -1087,7 +1100,6 @@ function mapProductFromDb(row) {
     ficha_tecnica_url: row.ficha_tecnica_url || null,
     observaciones: row.observaciones || null,
 
-    // Campos sin columna en DB → null
     emc: null,
     vida_util_horas: null,
     garantia_años: null,
@@ -2125,9 +2137,10 @@ function renderStep6() {
 const FIELDS = [
   {section:'IDENTIFICACIÓN',rows:[
     {key:'fabricante',label:'Fabricante'},
-    {key:'serie',label:'Serie'},
     {key:'modelo',label:'Modelo'},
-    {key:'tecnologia',label:'Tecnología'},
+    {key:'led_type_categoria',label:'Tipo de LED'},
+    {key:'led_type',label:'Tecnología de LED'},
+    {key:'tecnologia',label:'Tecnología fabricante'},
     {key:'pitch_mm',label:'Pixel Pitch (mm)',unit:'mm',lower:true},
   ]},
   {section:'RENDIMIENTO ÓPTICO',rows:[
@@ -2254,6 +2267,40 @@ function buildCompTable(products) {
       products.forEach((p, i) => {
         let raw = vals[i];
         let display = raw;
+
+        // ── Tipo de LED: badge SMD/COB con confirmación de criterio crítico ──
+        if (row.key === 'led_type_categoria') {
+          const cat = raw || null;
+          const userCat = (state.tecnologia || '').toUpperCase();
+          const match = cat && cat.toUpperCase() === userCat;
+          const noData = !cat;
+          let color, bg, border, icon;
+          if (noData) {
+            color = 'var(--text3)'; bg = 'var(--surface2)'; border = 'var(--border)'; icon = '—';
+          } else if (cat.toUpperCase() === 'COB') {
+            color = '#00D4FF'; bg = 'rgba(0,212,255,.12)'; border = 'rgba(0,212,255,.35)'; icon = 'COB';
+          } else if (cat.toUpperCase() === 'SMD') {
+            color = '#00E6A8'; bg = 'rgba(0,230,168,.12)'; border = 'rgba(0,230,168,.35)'; icon = 'SMD';
+          } else {
+            color = 'var(--yellow)'; bg = 'rgba(255,215,64,.1)'; border = 'rgba(255,215,64,.3)'; icon = cat;
+          }
+          const matchBadge = !noData
+            ? `<span style="font-size:9px;padding:2px 6px;border-radius:3px;margin-left:6px;
+                background:${match ? 'rgba(0,230,168,.1)' : 'rgba(255,61,87,.08)'};
+                color:${match ? 'var(--green)' : 'var(--red)'};
+                border:1px solid ${match ? 'rgba(0,230,168,.3)' : 'rgba(255,61,87,.25)'}">
+                ${match ? '✓ COINCIDE' : '✗ NO COINCIDE'}
+              </span>`
+            : '';
+          display = `<span style="display:inline-flex;align-items:center;gap:2px;flex-wrap:wrap">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:800;
+              padding:3px 10px;border-radius:4px;background:${bg};color:${color};border:1px solid ${border}">
+              ${icon}
+            </span>${matchBadge}
+          </span>`;
+          tbody += `<td>${display}</td>`;
+          return;
+        }
 
         // Tratamiento especial para refresh_hz: mostrar badge de cumplimiento
         if (row.key === 'refresh_hz' && state.refreshMin) {

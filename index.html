@@ -1093,12 +1093,7 @@ input[type=range]::-webkit-slider-thumb:hover{
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-download')">✕</button>
     <div class="modal-title">Descargar Comparación</div>
-    <div class="modal-subtitle">Te enviamos el informe completo en PDF a tu email. Incluye la tabla comparativa y el análisis del consultor.</div>
-    <div id="dl-conclusion-preview" style="display:none;background:var(--surface2);border:1px solid rgba(0,212,255,.2);border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:var(--text2);line-height:1.6;max-height:100px;overflow:hidden;position:relative">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px">// ANÁLISIS DEL CONSULTOR</div>
-      <div id="dl-conclusion-text" style="font-style:italic"></div>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(transparent,var(--surface2))"></div>
-    </div>
+    <div class="modal-subtitle">Introduce tus datos para registrar la descarga y obtener el informe PDF completo con la tabla comparativa y el análisis del consultor.</div>
     <input class="modal-input" id="dl-name" placeholder="Tu nombre">
     <input class="modal-input" id="dl-apellidos" placeholder="Tus apellidos">
     <input class="modal-input" id="dl-email" type="email" placeholder="Tu email *">
@@ -1106,7 +1101,7 @@ input[type=range]::-webkit-slider-thumb:hover{
       <input type="checkbox" id="dl-rgpd" style="margin-top:2px;flex-shrink:0">
       <span>Acepto el tratamiento de mis datos personales según la <a href="/privacidad" target="_blank" style="color:var(--cyan)">política de privacidad</a>.</span>
     </label>
-    <button class="btn-modal-submit" onclick="submitDownload()">ENVIAR INFORME →</button>
+    <button class="btn-modal-submit" onclick="submitDownload()">↓ DESCARGAR PDF →</button>
   </div>
 </div>
 
@@ -3187,52 +3182,64 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 // ═══════════════════════════════════════
 
 async function upsertLead(nombre, apellidos, email, extraData = {}) {
-  // 1. Buscar si el lead ya existe por email
-  const { data: existing } = await window.supabaseClient
+  const now = new Date().toISOString();
+
+  const leadPayload = {
+    nombre: nombre || null,
+    apellidos: apellidos || null,
+    email,
+    estado: 'nuevo',
+    ultima_accion: now,
+    entorno:      extraData.entorno      || null,
+    tecnologia:   extraData.tecnologia   || null,
+    escenarios:   extraData.escenarios   || null,
+    pitch_min:    extraData.pitch_min    || null,
+    pitch_max:    extraData.pitch_max    || null,
+    brillo_min:   extraData.brillo_min   || null,
+    brillo_max:   extraData.brillo_max   || null,
+    refresh_min:  extraData.refresh_min  || null,
+    refresh_max:  extraData.refresh_max  || null,
+    ancho_m:      extraData.ancho_m      || null,
+    alto_m:       extraData.alto_m       || null,
+    top1_fabricante: extraData.top1_fabricante || null,
+    top1_modelo:     extraData.top1_modelo     || null,
+    top1_score:      extraData.top1_score      || null,
+    top2_fabricante: extraData.top2_fabricante || null,
+    top2_modelo:     extraData.top2_modelo     || null,
+    top2_score:      extraData.top2_score      || null,
+    top3_fabricante: extraData.top3_fabricante || null,
+    top3_modelo:     extraData.top3_modelo     || null,
+    top3_score:      extraData.top3_score      || null,
+  };
+
+  // Intentar insertar directo
+  const { data: nuevo, error: insertError } = await window.supabaseClient
     .from('leads')
-    .select('id, acciones')
+    .insert([leadPayload])
+    .select('id')
+    .single();
+
+  if (!insertError && nuevo) {
+    console.log('Lead creado:', nuevo.id);
+    return nuevo.id;
+  }
+
+  // Si falla (email duplicado u otro error), buscar por email y actualizar
+  console.warn('Insert lead error:', insertError.message, '— buscando lead existente...');
+  const { data: existente } = await window.supabaseClient
+    .from('leads')
+    .select('id')
     .eq('email', email)
     .maybeSingle();
 
-  const now = new Date().toISOString();
-
-  if (existing) {
-    // Actualizar ultima_accion y datos de config si son mejores
-    const updates = { ultima_accion: now };
-    if (nombre) updates.nombre = nombre;
-    if (apellidos) updates.apellidos = apellidos;
-    // Actualizar config del configurador si hay datos nuevos
-    if (extraData.entorno) updates.entorno = extraData.entorno;
-    if (extraData.tecnologia) updates.tecnologia = extraData.tecnologia;
-    if (extraData.escenarios) updates.escenarios = extraData.escenarios;
-    if (extraData.pitch_min) updates.pitch_min = extraData.pitch_min;
-    if (extraData.pitch_max) updates.pitch_max = extraData.pitch_max;
-    if (extraData.brillo_min) updates.brillo_min = extraData.brillo_min;
-    if (extraData.brillo_max) updates.brillo_max = extraData.brillo_max;
-    if (extraData.refresh_min) updates.refresh_min = extraData.refresh_min;
-    if (extraData.refresh_max) updates.refresh_max = extraData.refresh_max;
-    if (extraData.ancho_m) updates.ancho_m = extraData.ancho_m;
-    if (extraData.alto_m) updates.alto_m = extraData.alto_m;
-    if (extraData.top1_fabricante) { updates.top1_fabricante=extraData.top1_fabricante; updates.top1_modelo=extraData.top1_modelo; updates.top1_score=extraData.top1_score; }
-    if (extraData.top2_fabricante) { updates.top2_fabricante=extraData.top2_fabricante; updates.top2_modelo=extraData.top2_modelo; updates.top2_score=extraData.top2_score; }
-    if (extraData.top3_fabricante) { updates.top3_fabricante=extraData.top3_fabricante; updates.top3_modelo=extraData.top3_modelo; updates.top3_score=extraData.top3_score; }
-    if (extraData.conclusion_ia) updates.conclusion_ia = extraData.conclusion_ia;
-
-    await window.supabaseClient.from('leads').update(updates).eq('id', existing.id);
-    return existing.id;
-  } else {
-    // Crear nuevo lead
-    const { data: nuevo, error } = await window.supabaseClient.from('leads').insert([{
-      nombre: nombre || null,
-      apellidos: apellidos || null,
-      email,
-      estado: 'nuevo',
-      ultima_accion: now,
-      ...extraData
-    }]).select('id').single();
-    if (error) throw error;
-    return nuevo.id;
+  if (existente) {
+    const { estado, ...updatePayload } = leadPayload;
+    await window.supabaseClient.from('leads').update(updatePayload).eq('id', existente.id);
+    console.log('Lead actualizado:', existente.id);
+    return existente.id;
   }
+
+  throw new Error('No se pudo crear ni encontrar el lead: ' + insertError.message);
 }
 
 async function registrarAccion(leadId, tipo, descripcion, contenido = {}, archivoUrl = null, archivoNombre = null) {
@@ -3262,50 +3269,228 @@ async function submitDownload() {
   if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
 
   const btn = document.querySelector('#modal-download .btn-modal-submit');
-  if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Generando PDF...'; btn.disabled = true; }
 
+  const configData = {
+    entorno: state.entorno,
+    tecnologia: state.tecnologia,
+    escenarios: state.escenarios,
+    pitch_min: state.pitchMin,
+    pitch_max: state.pitchMax,
+    brillo_min: state.brilloMin,
+    brillo_max: state.brilloMax,
+    refresh_min: state.refreshMin,
+    refresh_max: state.refreshMax,
+    ancho_m: state.ancho,
+    alto_m: state.alto,
+    top1_fabricante: state.top3[0]?.fabricante || null,
+    top1_modelo: state.top3[0]?.modelo || null,
+    top1_score: state.top3[0]?.score || null,
+    top2_fabricante: state.top3[1]?.fabricante || null,
+    top2_modelo: state.top3[1]?.modelo || null,
+    top2_score: state.top3[1]?.score || null,
+    top3_fabricante: state.top3[2]?.fabricante || null,
+    top3_modelo: state.top3[2]?.modelo || null,
+    top3_score: state.top3[2]?.score || null,
+  };
+
+  // 1. Guardar lead y acción en Supabase
   try {
-    const configData = {
-      entorno: state.entorno,
-      tecnologia: state.tecnologia,
-      escenarios: state.escenarios,
-      pitch_min: state.pitchMin,
-      pitch_max: state.pitchMax,
-      brillo_min: state.brilloMin,
-      brillo_max: state.brilloMax,
-      refresh_min: state.refreshMin,
-      refresh_max: state.refreshMax,
-      ancho_m: state.ancho,
-      alto_m: state.alto,
-      top1_fabricante: state.top3[0]?.fabricante || null,
-      top1_modelo: state.top3[0]?.modelo || null,
-      top1_score: state.top3[0]?.score || null,
-      top2_fabricante: state.top3[1]?.fabricante || null,
-      top2_modelo: state.top3[1]?.modelo || null,
-      top2_score: state.top3[1]?.score || null,
-      top3_fabricante: state.top3[2]?.fabricante || null,
-      top3_modelo: state.top3[2]?.modelo || null,
-      top3_score: state.top3[2]?.score || null,
-      conclusion_ia: conclusionTexto || null,
-    };
-
     const leadId = await upsertLead(nombre, apellidos, email, configData);
-
     await registrarAccion(leadId, 'pdf_resultados',
-      `Solicitó informe PDF · ${state.entorno} · ${state.tecnologia} · ${(state.escenarios||[]).join(', ')}`,
+      `Descargó informe PDF · ${state.entorno} · ${state.tecnologia} · ${(state.escenarios||[]).join(', ')}`,
       { configuracion: configData, conclusion: conclusionTexto || null }
     );
-
-    await crearNotificacionAdmin('pdf_solicitado', 'Informe PDF solicitado',
-      `${nombre||'Usuario'} (${email}) solicitó el informe comparativo · ${state.entorno} · ${state.tecnologia}`,
+    await crearNotificacionAdmin('pdf_solicitado', 'Informe PDF descargado',
+      `${nombre||'Usuario'} (${email}) descargó el informe comparativo · ${state.entorno} · ${state.tecnologia}`,
       { email, nombre, lead_id: leadId, entorno: state.entorno, tecnologia: state.tecnologia }
     );
   } catch(e) { console.warn('Lead save error:', e.message); }
 
-  if (btn) { btn.textContent = 'ENVIAR INFORME →'; btn.disabled = false; }
-  closeModal('modal-download');
-  showToast('✓ Informe enviado a ' + email);
+  // 2. Generar y descargar el PDF directamente en el navegador
+  try {
+    generarYDescargarPDF(nombre, apellidos, email);
+    closeModal('modal-download');
+    showToast('✓ PDF descargando...');
+  } catch(e) {
+    console.error('PDF error:', e);
+    showToast('Error generando PDF', 'error');
+  }
+
+  if (btn) { btn.textContent = '↓ DESCARGAR PDF →'; btn.disabled = false; }
 }
+
+function generarYDescargarPDF(nombre, apellidos, email) {
+  const tzOpts = {timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'};
+  const fechaHoy = new Date().toLocaleString('es-ES', tzOpts);
+  const escenarioNombre = state.escenarios.length
+    ? (SCENARIOS.find(s=>s.id===state.escenarios[0])?.name || state.escenarios[0])
+    : '—';
+
+  // Construir filas de la tabla comparativa en texto plano para el PDF
+  const productos = state.top3;
+  const rankLabels = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+
+  // Generar HTML del PDF
+  const htmlContent = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a2535; background: #fff; padding: 32px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 3px solid #1B6CF2; padding-bottom: 16px; margin-bottom: 24px; }
+  .logo { font-size: 22px; font-weight: 900; color: #1B6CF2; letter-spacing: 1px; }
+  .logo span { color: #29B6F6; }
+  .meta { text-align:right; font-size: 10px; color: #6b7280; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin: 20px 0 12px; }
+  .config-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .config-chip { background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 10px; }
+  .config-chip .label { font-size: 9px; color: #6b7280; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+  .config-chip .value { font-size: 13px; font-weight: 700; color: #1B6CF2; }
+  .prod-grid { display: grid; grid-template-columns: repeat(${Math.min(productos.length, 3)}, 1fr); gap: 12px; margin-bottom: 20px; }
+  .prod-card { border-radius: 8px; padding: 14px; }
+  .prod-card.rank0 { background: #f0fdf4; border: 2px solid #00E6A8; }
+  .prod-card.rank1 { background: #eff6ff; border: 2px solid #29B6F6; }
+  .prod-card.rank2 { background: #fefce8; border: 2px solid #F5C542; }
+  .prod-rank { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .prod-rank.rank0 { color: #00a876; }
+  .prod-rank.rank1 { color: #1B6CF2; }
+  .prod-rank.rank2 { color: #ca8a04; }
+  .prod-fab { font-size: 9px; color: #6b7280; letter-spacing: 2px; text-transform: uppercase; }
+  .prod-model { font-size: 18px; font-weight: 800; margin: 3px 0; }
+  .prod-model.rank0 { color: #00a876; }
+  .prod-model.rank1 { color: #1B6CF2; }
+  .prod-model.rank2 { color: #ca8a04; }
+  .prod-score { display:inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .prod-score.rank0 { background: #dcfce7; color: #166534; }
+  .prod-score.rank1 { background: #dbeafe; color: #1e40af; }
+  .prod-score.rank2 { background: #fef9c3; color: #854d0e; }
+  .prod-row { display:flex; justify-content:space-between; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.06); font-size: 10px; }
+  .prod-row .k { color: #6b7280; }
+  .prod-row .v { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; }
+  th { background: #1B6CF2; color: white; padding: 8px 10px; text-align: left; font-size: 9px; letter-spacing: 1px; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  td:first-child { font-size: 9px; color: #6b7280; font-weight: 600; background: #f3f4f6; }
+  .section-row td { background: #1e293b !important; color: white; font-size: 9px; letter-spacing: 2px; padding: 5px 10px; }
+  .conclusion { background: #f0f7ff; border-left: 4px solid #1B6CF2; border-radius: 0 8px 8px 0; padding: 16px; margin-top: 20px; }
+  .conclusion .title { font-size: 11px; font-weight: 700; color: #1B6CF2; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .conclusion .text { font-size: 11px; color: #374151; line-height: 1.7; }
+  .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; }
+  .user-info { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: #374151; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">COMPARA <span>TU LED</span></div>
+      <div style="font-size:10px;color:#6b7280;margin-top:4px">Informe de comparativa de pantallas LED</div>
+    </div>
+    <div class="meta">
+      <div>${fechaHoy}</div>
+      <div style="margin-top:2px">tuled.pro</div>
+    </div>
+  </div>
+
+  <div class="user-info">
+    <strong>${[nombre, apellidos].filter(Boolean).join(' ') || 'Usuario'}</strong> · ${email}
+  </div>
+
+  <div class="section-title">Configuración de búsqueda</div>
+  <div class="config-grid">
+    <div class="config-chip"><div class="label">Entorno</div><div class="value">${state.entorno||'—'}</div></div>
+    <div class="config-chip"><div class="label">Tecnología</div><div class="value">${state.tecnologia||'—'}</div></div>
+    <div class="config-chip"><div class="label">Pixel Pitch</div><div class="value">${state.pitchMin?'P'+state.pitchMin+'–P'+state.pitchMax:'—'}</div></div>
+    <div class="config-chip"><div class="label">Dimensiones</div><div class="value">${state.ancho?state.ancho+'×'+state.alto+'m':'—'}</div></div>
+    <div class="config-chip"><div class="label">Brillo</div><div class="value">${state.brilloMin?state.brilloMin+'–'+state.brilloMax+' nits':'—'}</div></div>
+    <div class="config-chip"><div class="label">Refresco</div><div class="value">${state.refreshMin?state.refreshMin+'–'+state.refreshMax+' Hz':'—'}</div></div>
+    <div class="config-chip"><div class="label">Escenario</div><div class="value" style="font-size:11px">${escenarioNombre}</div></div>
+    <div class="config-chip"><div class="label">Área total</div><div class="value">${state.ancho?((state.ancho*state.alto).toFixed(1)+' m²'):'—'}</div></div>
+  </div>
+
+  <div class="section-title">Top ${productos.length} modelos recomendados</div>
+  <div class="prod-grid">
+    ${productos.map((p,i) => `
+    <div class="prod-card rank${i}">
+      <div class="prod-rank rank${i}">${rankLabels[i]||''}</div>
+      <div class="prod-fab">${p.fabricante}</div>
+      <div class="prod-model rank${i}">${p.modelo}</div>
+      <div class="prod-score rank${i}">▲ ${p.score} / 100</div>
+      <div class="prod-row"><span class="k">Tecnología</span><span class="v">${p.tecnologia||'—'}</span></div>
+      <div class="prod-row"><span class="k">Pixel Pitch</span><span class="v">${p.pitch_mm!=null?p.pitch_mm+' mm':'—'}</span></div>
+      <div class="prod-row"><span class="k">Brillo máx.</span><span class="v">${p.brillo_max_nits!=null?p.brillo_max_nits.toLocaleString()+' nits':'—'}</span></div>
+      <div class="prod-row"><span class="k">Refresh</span><span class="v">${p.refresh_hz!=null?p.refresh_hz+' Hz':'—'}</span></div>
+      <div class="prod-row"><span class="k">IP Rating</span><span class="v">${p.ip_rating||'—'}</span></div>
+    </div>`).join('')}
+  </div>
+
+  <div class="section-title">Tabla comparativa completa</div>
+  <table>
+    <thead><tr>
+      <th style="width:160px">Parámetro</th>
+      ${productos.map(p=>`<th>${p.fabricante} ${p.modelo}</th>`).join('')}
+    </tr></thead>
+    <tbody>
+      <tr class="section-row"><td colspan="${productos.length+1}">IDENTIFICACIÓN</td></tr>
+      ${[
+        ['Tecnología', p => p.tecnologia||'—'],
+        ['Pixel Pitch', p => p.pitch_mm!=null?p.pitch_mm+' mm':'—'],
+        ['Tipo LED', p => p.led_type||'—'],
+      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
+      <tr class="section-row"><td colspan="${productos.length+1}">RENDIMIENTO ÓPTICO</td></tr>
+      ${[
+        ['Brillo máx.', p => p.brillo_max_nits!=null?p.brillo_max_nits.toLocaleString()+' nits':'—'],
+        ['Contraste', p => p.contraste||'—'],
+        ['Refresh Hz', p => p.refresh_hz!=null?p.refresh_hz+' Hz':'—'],
+        ['Ángulo H', p => p.angulo_vision_h!=null?p.angulo_vision_h+'°':'—'],
+        ['Ángulo V', p => p.angulo_vision_v!=null?p.angulo_vision_v+'°':'—'],
+        ['Grises', p => p.profundidad_grises_bit!=null?p.profundidad_grises_bit+' bit':'—'],
+      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
+      <tr class="section-row"><td colspan="${productos.length+1}">ESPECIFICACIONES FÍSICAS</td></tr>
+      ${[
+        ['IP Rating', p => p.ip_rating||'—'],
+        ['Mantenimiento', p => p.mantenimiento||'—'],
+        ['Módulo (mm)', p => p.modulo_ancho_mm&&p.modulo_alto_mm?p.modulo_ancho_mm+'×'+p.modulo_alto_mm:'—'],
+      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
+      <tr class="section-row"><td colspan="${productos.length+1}">CONSUMO ENERGÉTICO</td></tr>
+      ${[
+        ['Consumo máx.', p => p.consumo_max_w_m2!=null?p.consumo_max_w_m2+' W/m²':'—'],
+        ['Consumo prom.', p => p.consumo_avg_w_m2!=null?p.consumo_avg_w_m2+' W/m²':'—'],
+      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
+      <tr class="section-row"><td colspan="${productos.length+1}">CERTIFICACIONES</td></tr>
+      <tr><td>Certificaciones</td>${productos.map(p=>`<td>${Array.isArray(p.certificaciones)?p.certificaciones.join(', '):(p.certificaciones||'—')}</td>`).join('')}</tr>
+    </tbody>
+  </table>
+
+  ${conclusionTexto ? `
+  <div class="conclusion">
+    <div class="title">◆ Análisis del consultor IA</div>
+    <div class="text">${conclusionTexto.replace(/\n/g,'<br>')}</div>
+  </div>` : ''}
+
+  <div class="footer">
+    <span>ComparaTuLED · tuled.pro</span>
+    <span>Generado el ${fechaHoy} · ${email}</span>
+  </div>
+</body>
+</html>`;
+
+  // Abrir en nueva ventana y disparar print (que permite guardar como PDF)
+  const ventana = window.open('', '_blank');
+  if (!ventana) {
+    showToast('Activa los pop-ups para descargar el PDF', 'error');
+    return;
+  }
+  ventana.document.write(htmlContent);
+  ventana.document.close();
+  setTimeout(() => {
+    ventana.focus();
+    ventana.print();
+  }, 600);
+}
+
 
 async function submitReport() {
   const email = document.getElementById('rep-email').value.trim();
@@ -3824,8 +4009,10 @@ function renderLeadRow(lead) {
   const fecha = new Date(lead.creado_en);
   const ahora = new Date();
   const diffD = Math.floor((ahora-fecha)/86400000);
-  const fechaStr = diffD===0 ? 'Hoy · '+fecha.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})
-    : diffD===1 ? 'Ayer' : fecha.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'});
+  const optsTime = {hour:'2-digit',minute:'2-digit',timeZone:'Europe/Madrid'};
+  const optsDate = {day:'2-digit',month:'short',year:'2-digit',timeZone:'Europe/Madrid'};
+  const fechaStr = diffD===0 ? 'Hoy · '+fecha.toLocaleTimeString('es-ES',optsTime)
+    : diffD===1 ? 'Ayer' : fecha.toLocaleDateString('es-ES',optsDate);
 
   const config = [
     lead.entorno,
@@ -3897,8 +4084,9 @@ async function abrirDetalleLead(id) {
   }
 
   const est = LEAD_ESTADOS[lead.estado] || LEAD_ESTADOS.nuevo;
-  const fecha = new Date(lead.creado_en).toLocaleString('es-ES');
-  const ultimaAccion = lead.ultima_accion ? new Date(lead.ultima_accion).toLocaleString('es-ES') : '—';
+  const tzOpts = {timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'};
+  const fecha = new Date(lead.creado_en).toLocaleString('es-ES', tzOpts);
+  const ultimaAccion = lead.ultima_accion ? new Date(lead.ultima_accion).toLocaleString('es-ES', tzOpts) : '—';
   const escenarios = (lead.escenarios||[]).join(', ') || '—';
 
   const TIPO_ACCIONES = {
@@ -4011,7 +4199,7 @@ async function abrirDetalleLead(id) {
 
   accionesEl.innerHTML = acciones.map(a => {
     const t = TIPO_ACCIONES[a.tipo] || { icon:'◉', label: a.tipo, color:'var(--text2)' };
-    const fechaA = new Date(a.creado_en).toLocaleString('es-ES');
+    const fechaA = new Date(a.creado_en).toLocaleString('es-ES', {timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     return `
     <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px">
       <span style="font-size:18px;flex-shrink:0;margin-top:1px">${t.icon}</span>
@@ -4445,9 +4633,11 @@ async function renderAdminNotif(el) {
       const fecha = new Date(n.creado_en);
       const ahora = new Date();
       const diffD = Math.floor((ahora-fecha)/86400000);
+      const optsTimeN = {hour:'2-digit',minute:'2-digit',timeZone:'Europe/Madrid'};
+      const optsDateN = {day:'2-digit',month:'short',year:'2-digit',timeZone:'Europe/Madrid'};
       const fechaStr = diffD===0
-        ? 'Hoy · '+fecha.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})
-        : diffD===1 ? 'Ayer' : fecha.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'});
+        ? 'Hoy · '+fecha.toLocaleTimeString('es-ES',optsTimeN)
+        : diffD===1 ? 'Ayer' : fecha.toLocaleDateString('es-ES',optsDateN);
       const tipo = TIPO_LABELS[n.tipo] || { icon:'◉', label: n.tipo };
       const leadId = n.datos?.lead_id;
 

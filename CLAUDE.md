@@ -90,7 +90,7 @@ git push origin main
 ## BACKLOG — Tareas pendientes
 
 ### 🔧 Admin Panel
-- PENDIENTE: Al hacer clic en el botón "Admin" del header, el panel admin debe abrirse en una nueva pestaña del navegador, no dentro de la misma página. Cambio mínimo en el botón del header.
+- HECHO: Al hacer clic en el botón "Admin" del header, el panel admin debe abrirse en una nueva pestaña del navegador, no dentro de la misma página. Cambio mínimo en el botón del header.
 
 ### 🌍 Configurador — Multiidioma
 - PENDIENTE: Añadir selector de idioma Español / Inglés en el configurador. Si el usuario selecciona inglés, toda la interfaz aparece en inglés: botones, textos del wizard, parámetros técnicos, conclusión IA generada por Claude, etc. Claude Code lo implementa automáticamente.

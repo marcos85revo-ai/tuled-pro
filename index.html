@@ -3183,65 +3183,82 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 async function upsertLead(nombre, apellidos, email, extraData = {}) {
   const now = new Date().toISOString();
+  console.log('[LEADS] upsertLead para:', email);
 
-  const leadPayload = {
-    nombre: nombre || null,
-    apellidos: apellidos || null,
-    email,
-    estado: 'nuevo',
-    ultima_accion: now,
-    entorno:      extraData.entorno      || null,
-    tecnologia:   extraData.tecnologia   || null,
-    escenarios:   extraData.escenarios   || null,
-    pitch_min:    extraData.pitch_min    || null,
-    pitch_max:    extraData.pitch_max    || null,
-    brillo_min:   extraData.brillo_min   || null,
-    brillo_max:   extraData.brillo_max   || null,
-    refresh_min:  extraData.refresh_min  || null,
-    refresh_max:  extraData.refresh_max  || null,
-    ancho_m:      extraData.ancho_m      || null,
-    alto_m:       extraData.alto_m       || null,
+  // Columnas confirmadas en tabla leads:
+  // id, creado_en, nombre, email, entorno, tecnologia, escenarios,
+  // pitch_min, pitch_max, brillo_min, brillo_max, refresh_min, refresh_max,
+  // ancho_m, alto_m, top1_fabricante/modelo/score, top2, top3,
+  // notas, estado, conclusion_ia, apellidos, ultima_accion, acciones
+
+  const payload = {
+    nombre:          nombre || null,
+    apellidos:       apellidos || null,
+    email:           email,
+    estado:          'nuevo',
+    ultima_accion:   now,
+    entorno:         extraData.entorno         || null,
+    tecnologia:      extraData.tecnologia      || null,
+    escenarios:      extraData.escenarios      || null,
+    pitch_min:       extraData.pitch_min       != null ? extraData.pitch_min       : null,
+    pitch_max:       extraData.pitch_max       != null ? extraData.pitch_max       : null,
+    brillo_min:      extraData.brillo_min      != null ? extraData.brillo_min      : null,
+    brillo_max:      extraData.brillo_max      != null ? extraData.brillo_max      : null,
+    refresh_min:     extraData.refresh_min     != null ? extraData.refresh_min     : null,
+    refresh_max:     extraData.refresh_max     != null ? extraData.refresh_max     : null,
+    ancho_m:         extraData.ancho_m         != null ? extraData.ancho_m         : null,
+    alto_m:          extraData.alto_m          != null ? extraData.alto_m          : null,
     top1_fabricante: extraData.top1_fabricante || null,
     top1_modelo:     extraData.top1_modelo     || null,
-    top1_score:      extraData.top1_score      || null,
+    top1_score:      extraData.top1_score      != null ? extraData.top1_score      : null,
     top2_fabricante: extraData.top2_fabricante || null,
     top2_modelo:     extraData.top2_modelo     || null,
-    top2_score:      extraData.top2_score      || null,
+    top2_score:      extraData.top2_score      != null ? extraData.top2_score      : null,
     top3_fabricante: extraData.top3_fabricante || null,
     top3_modelo:     extraData.top3_modelo     || null,
-    top3_score:      extraData.top3_score      || null,
+    top3_score:      extraData.top3_score      != null ? extraData.top3_score      : null,
   };
 
-  // Intentar insertar directo
+  // 1. Intentar INSERT
   const { data: nuevo, error: insertError } = await window.supabaseClient
     .from('leads')
-    .insert([leadPayload])
+    .insert([payload])
     .select('id')
     .single();
 
   if (!insertError && nuevo) {
-    console.log('Lead creado:', nuevo.id);
+    console.log('[LEADS] Creado:', nuevo.id);
     return nuevo.id;
   }
 
-  // Si falla (email duplicado u otro error), buscar por email y actualizar
-  console.warn('Insert lead error:', insertError.message, '— buscando lead existente...');
-  const { data: existente } = await window.supabaseClient
+  console.warn('[LEADS] Insert falló:', insertError?.code, insertError?.message);
+
+  // 2. Si ya existe por email, hacer UPDATE
+  const { data: existente, error: selErr } = await window.supabaseClient
     .from('leads')
     .select('id')
     .eq('email', email)
     .maybeSingle();
 
+  if (selErr) console.warn('[LEADS] Select error:', selErr.message);
+
   if (existente) {
-    const { estado, ...updatePayload } = leadPayload;
-    await window.supabaseClient.from('leads').update(updatePayload).eq('id', existente.id);
-    console.log('Lead actualizado:', existente.id);
+    const updatePayload = Object.assign({}, payload);
+    delete updatePayload.estado; // no sobreescribir estado si ya fue cambiado
+    const { error: updErr } = await window.supabaseClient
+      .from('leads')
+      .update(updatePayload)
+      .eq('id', existente.id);
+    if (updErr) console.warn('[LEADS] Update error:', updErr.message);
+    else console.log('[LEADS] Actualizado:', existente.id);
     return existente.id;
   }
 
-  throw new Error('No se pudo crear ni encontrar el lead: ' + insertError.message);
+  // 3. Si llegamos aquí, el insert falló por RLS u otro motivo estructural
+  const msg = insertError?.message || 'error desconocido';
+  console.error('[LEADS] No se pudo crear lead. Error:', msg);
+  throw new Error(msg);
 }
-
 async function registrarAccion(leadId, tipo, descripcion, contenido = {}, archivoUrl = null, archivoNombre = null) {
   await window.supabaseClient.from('lead_acciones').insert([{
     lead_id: leadId,
@@ -3323,174 +3340,177 @@ async function submitDownload() {
 function generarYDescargarPDF(nombre, apellidos, email) {
   const tzOpts = {timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'};
   const fechaHoy = new Date().toLocaleString('es-ES', tzOpts);
-  const escenarioNombre = state.escenarios.length
-    ? (SCENARIOS.find(s=>s.id===state.escenarios[0])?.name || state.escenarios[0])
+  const productos = state.top3 || [];
+  if (!productos.length) { showToast('No hay productos para generar el informe','error'); return; }
+
+  const rankLabels = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+  const rankColors = ['#00a876','#1B6CF2','#ca8a04'];
+  const rankBg     = ['#f0fdf4','#eff6ff','#fefce8'];
+  const rankBorder = ['#00E6A8','#29B6F6','#F5C542'];
+  const rankScoreBg = ['#dcfce7','#dbeafe','#fef9c3'];
+
+  const escenarioNombre = state.escenarios && state.escenarios.length
+    ? (SCENARIOS.find(s => s.id === state.escenarios[0])?.name || state.escenarios[0])
     : '—';
 
-  // Construir filas de la tabla comparativa en texto plano para el PDF
-  const productos = state.top3;
-  const rankLabels = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+  // Build HTML as array of strings — no nested template literals
+  const H = [];
+  H.push('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">');
+  H.push('<style>');
+  H.push('*{margin:0;padding:0;box-sizing:border-box}');
+  H.push('body{font-family:Arial,sans-serif;font-size:12px;color:#1a2535;padding:32px}');
+  H.push('.header{display:flex;justify-content:space-between;border-bottom:3px solid #1B6CF2;padding-bottom:16px;margin-bottom:24px}');
+  H.push('.logo{font-size:22px;font-weight:900;color:#1B6CF2;letter-spacing:1px}');
+  H.push('.meta{text-align:right;font-size:10px;color:#6b7280}');
+  H.push('.sec{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:6px;margin:20px 0 12px}');
+  H.push('.cfgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}');
+  H.push('.chip{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 10px}');
+  H.push('.chip .lbl{font-size:9px;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}');
+  H.push('.chip .val{font-size:13px;font-weight:700;color:#1B6CF2}');
+  H.push('.pgrid{display:grid;grid-template-columns:repeat(' + Math.min(productos.length, 3) + ',1fr);gap:12px;margin-bottom:20px}');
+  H.push('.pc{border-radius:8px;padding:14px}');
+  H.push('.prow{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.06);font-size:10px}');
+  H.push('table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:20px}');
+  H.push('th{background:#1B6CF2;color:white;padding:8px 10px;text-align:left;font-size:9px;letter-spacing:1px}');
+  H.push('td{padding:6px 10px;border-bottom:1px solid #e5e7eb;vertical-align:middle}');
+  H.push('tr:nth-child(even) td{background:#f9fafb}');
+  H.push('td:first-child{font-size:9px;color:#6b7280;font-weight:600;background:#f3f4f6}');
+  H.push('.sr td{background:#1e293b!important;color:white;font-size:9px;letter-spacing:2px;padding:5px 10px}');
+  H.push('.conclusion{background:#f0f7ff;border-left:4px solid #1B6CF2;border-radius:0 8px 8px 0;padding:16px;margin-top:20px}');
+  H.push('.footer{margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#9ca3af}');
+  H.push('.uinfo{background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 14px;margin-bottom:20px;font-size:11px}');
+  H.push('@media print{body{padding:16px}.footer{position:fixed;bottom:0;width:100%}}');
+  H.push('</style></head><body>');
 
-  // Generar HTML del PDF
-  const htmlContent = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #1a2535; background: #fff; padding: 32px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 3px solid #1B6CF2; padding-bottom: 16px; margin-bottom: 24px; }
-  .logo { font-size: 22px; font-weight: 900; color: #1B6CF2; letter-spacing: 1px; }
-  .logo span { color: #29B6F6; }
-  .meta { text-align:right; font-size: 10px; color: #6b7280; }
-  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin: 20px 0 12px; }
-  .config-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-  .config-chip { background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 10px; }
-  .config-chip .label { font-size: 9px; color: #6b7280; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
-  .config-chip .value { font-size: 13px; font-weight: 700; color: #1B6CF2; }
-  .prod-grid { display: grid; grid-template-columns: repeat(${Math.min(productos.length, 3)}, 1fr); gap: 12px; margin-bottom: 20px; }
-  .prod-card { border-radius: 8px; padding: 14px; }
-  .prod-card.rank0 { background: #f0fdf4; border: 2px solid #00E6A8; }
-  .prod-card.rank1 { background: #eff6ff; border: 2px solid #29B6F6; }
-  .prod-card.rank2 { background: #fefce8; border: 2px solid #F5C542; }
-  .prod-rank { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
-  .prod-rank.rank0 { color: #00a876; }
-  .prod-rank.rank1 { color: #1B6CF2; }
-  .prod-rank.rank2 { color: #ca8a04; }
-  .prod-fab { font-size: 9px; color: #6b7280; letter-spacing: 2px; text-transform: uppercase; }
-  .prod-model { font-size: 18px; font-weight: 800; margin: 3px 0; }
-  .prod-model.rank0 { color: #00a876; }
-  .prod-model.rank1 { color: #1B6CF2; }
-  .prod-model.rank2 { color: #ca8a04; }
-  .prod-score { display:inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
-  .prod-score.rank0 { background: #dcfce7; color: #166534; }
-  .prod-score.rank1 { background: #dbeafe; color: #1e40af; }
-  .prod-score.rank2 { background: #fef9c3; color: #854d0e; }
-  .prod-row { display:flex; justify-content:space-between; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,.06); font-size: 10px; }
-  .prod-row .k { color: #6b7280; }
-  .prod-row .v { font-weight: 600; }
-  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; }
-  th { background: #1B6CF2; color: white; padding: 8px 10px; text-align: left; font-size: 9px; letter-spacing: 1px; }
-  td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
-  tr:nth-child(even) td { background: #f9fafb; }
-  td:first-child { font-size: 9px; color: #6b7280; font-weight: 600; background: #f3f4f6; }
-  .section-row td { background: #1e293b !important; color: white; font-size: 9px; letter-spacing: 2px; padding: 5px 10px; }
-  .conclusion { background: #f0f7ff; border-left: 4px solid #1B6CF2; border-radius: 0 8px 8px 0; padding: 16px; margin-top: 20px; }
-  .conclusion .title { font-size: 11px; font-weight: 700; color: #1B6CF2; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
-  .conclusion .text { font-size: 11px; color: #374151; line-height: 1.7; }
-  .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; }
-  .user-info { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: #374151; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="logo">COMPARA <span>TU LED</span></div>
-      <div style="font-size:10px;color:#6b7280;margin-top:4px">Informe de comparativa de pantallas LED</div>
-    </div>
-    <div class="meta">
-      <div>${fechaHoy}</div>
-      <div style="margin-top:2px">tuled.pro</div>
-    </div>
-  </div>
+  // Header
+  H.push('<div class="header">');
+  H.push('<div><div class="logo">COMPARA TU LED</div>');
+  H.push('<div style="font-size:10px;color:#6b7280;margin-top:4px">Informe comparativo de pantallas LED</div></div>');
+  H.push('<div class="meta"><div>' + fechaHoy + '</div><div>tuled.pro</div></div>');
+  H.push('</div>');
 
-  <div class="user-info">
-    <strong>${[nombre, apellidos].filter(Boolean).join(' ') || 'Usuario'}</strong> · ${email}
-  </div>
+  // User info
+  const nombreCompleto = [nombre, apellidos].filter(Boolean).join(' ') || 'Usuario';
+  H.push('<div class="uinfo"><strong>' + nombreCompleto + '</strong> &middot; ' + email + '</div>');
 
-  <div class="section-title">Configuración de búsqueda</div>
-  <div class="config-grid">
-    <div class="config-chip"><div class="label">Entorno</div><div class="value">${state.entorno||'—'}</div></div>
-    <div class="config-chip"><div class="label">Tecnología</div><div class="value">${state.tecnologia||'—'}</div></div>
-    <div class="config-chip"><div class="label">Pixel Pitch</div><div class="value">${state.pitchMin?'P'+state.pitchMin+'–P'+state.pitchMax:'—'}</div></div>
-    <div class="config-chip"><div class="label">Dimensiones</div><div class="value">${state.ancho?state.ancho+'×'+state.alto+'m':'—'}</div></div>
-    <div class="config-chip"><div class="label">Brillo</div><div class="value">${state.brilloMin?state.brilloMin+'–'+state.brilloMax+' nits':'—'}</div></div>
-    <div class="config-chip"><div class="label">Refresco</div><div class="value">${state.refreshMin?state.refreshMin+'–'+state.refreshMax+' Hz':'—'}</div></div>
-    <div class="config-chip"><div class="label">Escenario</div><div class="value" style="font-size:11px">${escenarioNombre}</div></div>
-    <div class="config-chip"><div class="label">Área total</div><div class="value">${state.ancho?((state.ancho*state.alto).toFixed(1)+' m²'):'—'}</div></div>
-  </div>
+  // Config
+  H.push('<div class="sec">Configuracion de busqueda</div>');
+  H.push('<div class="cfgrid">');
+  const chips = [
+    ['Entorno', state.entorno || '—'],
+    ['Tecnologia', state.tecnologia || '—'],
+    ['Pixel Pitch', state.pitchMin ? 'P' + state.pitchMin + '–P' + state.pitchMax : '—'],
+    ['Dimensiones', state.ancho ? state.ancho + 'x' + state.alto + 'm' : '—'],
+    ['Brillo', state.brilloMin ? state.brilloMin + '–' + state.brilloMax + ' nits' : '—'],
+    ['Refresco', state.refreshMin ? state.refreshMin + '–' + state.refreshMax + ' Hz' : '—'],
+    ['Escenario', escenarioNombre],
+    ['Area total', state.ancho ? (state.ancho * state.alto).toFixed(1) + ' m2' : '—'],
+  ];
+  chips.forEach(function(c) {
+    H.push('<div class="chip"><div class="lbl">' + c[0] + '</div><div class="val">' + c[1] + '</div></div>');
+  });
+  H.push('</div>');
 
-  <div class="section-title">Top ${productos.length} modelos recomendados</div>
-  <div class="prod-grid">
-    ${productos.map((p,i) => `
-    <div class="prod-card rank${i}">
-      <div class="prod-rank rank${i}">${rankLabels[i]||''}</div>
-      <div class="prod-fab">${p.fabricante}</div>
-      <div class="prod-model rank${i}">${p.modelo}</div>
-      <div class="prod-score rank${i}">▲ ${p.score} / 100</div>
-      <div class="prod-row"><span class="k">Tecnología</span><span class="v">${p.tecnologia||'—'}</span></div>
-      <div class="prod-row"><span class="k">Pixel Pitch</span><span class="v">${p.pitch_mm!=null?p.pitch_mm+' mm':'—'}</span></div>
-      <div class="prod-row"><span class="k">Brillo máx.</span><span class="v">${p.brillo_max_nits!=null?p.brillo_max_nits.toLocaleString()+' nits':'—'}</span></div>
-      <div class="prod-row"><span class="k">Refresh</span><span class="v">${p.refresh_hz!=null?p.refresh_hz+' Hz':'—'}</span></div>
-      <div class="prod-row"><span class="k">IP Rating</span><span class="v">${p.ip_rating||'—'}</span></div>
-    </div>`).join('')}
-  </div>
+  // Product cards
+  H.push('<div class="sec">Top ' + productos.length + ' modelos recomendados</div>');
+  H.push('<div class="pgrid">');
+  productos.forEach(function(p, i) {
+    var bg = rankBg[i] || '#f9fafb';
+    var border = rankBorder[i] || '#e5e7eb';
+    var color = rankColors[i] || '#374151';
+    var scoreBg = rankScoreBg[i] || '#f3f4f6';
+    H.push('<div class="pc" style="background:' + bg + ';border:2px solid ' + border + '">');
+    H.push('<div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:' + color + ';margin-bottom:6px">' + (rankLabels[i] || '') + '</div>');
+    H.push('<div style="font-size:9px;color:#6b7280;letter-spacing:2px;text-transform:uppercase">' + (p.fabricante || '') + '</div>');
+    H.push('<div style="font-size:18px;font-weight:800;color:' + color + ';margin:3px 0">' + (p.modelo || '') + '</div>');
+    H.push('<div style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + scoreBg + ';color:' + color + ';margin-bottom:8px">Score: ' + p.score + ' / 100</div>');
+    var rows = [
+      ['Tecnologia', p.tecnologia || '—'],
+      ['Pixel Pitch', p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'],
+      ['Brillo max.', p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'],
+      ['Refresh', p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'],
+      ['IP Rating', p.ip_rating || '—'],
+    ];
+    rows.forEach(function(r) {
+      H.push('<div class="prow"><span style="color:#6b7280">' + r[0] + '</span><span style="font-weight:600">' + r[1] + '</span></div>');
+    });
+    H.push('</div>');
+  });
+  H.push('</div>');
 
-  <div class="section-title">Tabla comparativa completa</div>
-  <table>
-    <thead><tr>
-      <th style="width:160px">Parámetro</th>
-      ${productos.map(p=>`<th>${p.fabricante} ${p.modelo}</th>`).join('')}
-    </tr></thead>
-    <tbody>
-      <tr class="section-row"><td colspan="${productos.length+1}">IDENTIFICACIÓN</td></tr>
-      ${[
-        ['Tecnología', p => p.tecnologia||'—'],
-        ['Pixel Pitch', p => p.pitch_mm!=null?p.pitch_mm+' mm':'—'],
-        ['Tipo LED', p => p.led_type||'—'],
-      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
-      <tr class="section-row"><td colspan="${productos.length+1}">RENDIMIENTO ÓPTICO</td></tr>
-      ${[
-        ['Brillo máx.', p => p.brillo_max_nits!=null?p.brillo_max_nits.toLocaleString()+' nits':'—'],
-        ['Contraste', p => p.contraste||'—'],
-        ['Refresh Hz', p => p.refresh_hz!=null?p.refresh_hz+' Hz':'—'],
-        ['Ángulo H', p => p.angulo_vision_h!=null?p.angulo_vision_h+'°':'—'],
-        ['Ángulo V', p => p.angulo_vision_v!=null?p.angulo_vision_v+'°':'—'],
-        ['Grises', p => p.profundidad_grises_bit!=null?p.profundidad_grises_bit+' bit':'—'],
-      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
-      <tr class="section-row"><td colspan="${productos.length+1}">ESPECIFICACIONES FÍSICAS</td></tr>
-      ${[
-        ['IP Rating', p => p.ip_rating||'—'],
-        ['Mantenimiento', p => p.mantenimiento||'—'],
-        ['Módulo (mm)', p => p.modulo_ancho_mm&&p.modulo_alto_mm?p.modulo_ancho_mm+'×'+p.modulo_alto_mm:'—'],
-      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
-      <tr class="section-row"><td colspan="${productos.length+1}">CONSUMO ENERGÉTICO</td></tr>
-      ${[
-        ['Consumo máx.', p => p.consumo_max_w_m2!=null?p.consumo_max_w_m2+' W/m²':'—'],
-        ['Consumo prom.', p => p.consumo_avg_w_m2!=null?p.consumo_avg_w_m2+' W/m²':'—'],
-      ].map(([label,fn])=>`<tr><td>${label}</td>${productos.map(p=>`<td>${fn(p)}</td>`).join('')}</tr>`).join('')}
-      <tr class="section-row"><td colspan="${productos.length+1}">CERTIFICACIONES</td></tr>
-      <tr><td>Certificaciones</td>${productos.map(p=>`<td>${Array.isArray(p.certificaciones)?p.certificaciones.join(', '):(p.certificaciones||'—')}</td>`).join('')}</tr>
-    </tbody>
-  </table>
+  // Comparison table
+  H.push('<div class="sec">Tabla comparativa</div>');
+  H.push('<table><thead><tr><th style="width:160px">Parametro</th>');
+  productos.forEach(function(p) { H.push('<th>' + p.fabricante + ' ' + p.modelo + '</th>'); });
+  H.push('</tr></thead><tbody>');
 
-  ${conclusionTexto ? `
-  <div class="conclusion">
-    <div class="title">◆ Análisis del consultor IA</div>
-    <div class="text">${conclusionTexto.replace(/\n/g,'<br>')}</div>
-  </div>` : ''}
+  var sections = [
+    { title: 'IDENTIFICACION', rows: [
+      ['Tecnologia', function(p) { return p.tecnologia || '—'; }],
+      ['Pixel Pitch', function(p) { return p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'; }],
+      ['Tipo LED', function(p) { return p.led_type || '—'; }],
+    ]},
+    { title: 'RENDIMIENTO OPTICO', rows: [
+      ['Brillo max.', function(p) { return p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'; }],
+      ['Contraste', function(p) { return p.contraste || '—'; }],
+      ['Refresh Hz', function(p) { return p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'; }],
+      ['Angulo H', function(p) { return p.angulo_vision_h != null ? p.angulo_vision_h + 'grados' : '—'; }],
+      ['Angulo V', function(p) { return p.angulo_vision_v != null ? p.angulo_vision_v + 'grados' : '—'; }],
+      ['Grises', function(p) { return p.profundidad_grises_bit != null ? p.profundidad_grises_bit + ' bit' : '—'; }],
+    ]},
+    { title: 'ESPECIFICACIONES FISICAS', rows: [
+      ['IP Rating', function(p) { return p.ip_rating || '—'; }],
+      ['Mantenimiento', function(p) { return p.mantenimiento || '—'; }],
+      ['Modulo mm', function(p) { return p.modulo_ancho_mm && p.modulo_alto_mm ? p.modulo_ancho_mm + 'x' + p.modulo_alto_mm : '—'; }],
+    ]},
+    { title: 'CONSUMO ENERGETICO', rows: [
+      ['Consumo max.', function(p) { return p.consumo_max_w_m2 != null ? p.consumo_max_w_m2 + ' W/m2' : '—'; }],
+      ['Consumo prom.', function(p) { return p.consumo_avg_w_m2 != null ? p.consumo_avg_w_m2 + ' W/m2' : '—'; }],
+    ]},
+    { title: 'CERTIFICACIONES', rows: [
+      ['Certificaciones', function(p) { return Array.isArray(p.certificaciones) ? p.certificaciones.join(', ') : (p.certificaciones || '—'); }],
+    ]},
+  ];
 
-  <div class="footer">
-    <span>ComparaTuLED · tuled.pro</span>
-    <span>Generado el ${fechaHoy} · ${email}</span>
-  </div>
-</body>
-</html>`;
+  sections.forEach(function(sec) {
+    H.push('<tr class="sr"><td colspan="' + (productos.length + 1) + '">' + sec.title + '</td></tr>');
+    sec.rows.forEach(function(row) {
+      H.push('<tr><td>' + row[0] + '</td>');
+      productos.forEach(function(p) { H.push('<td>' + row[1](p) + '</td>'); });
+      H.push('</tr>');
+    });
+  });
 
-  // Abrir en nueva ventana y disparar print (que permite guardar como PDF)
-  const ventana = window.open('', '_blank');
-  if (!ventana) {
-    showToast('Activa los pop-ups para descargar el PDF', 'error');
-    return;
+  H.push('</tbody></table>');
+
+  // Conclusion
+  if (typeof conclusionTexto === 'string' && conclusionTexto.trim()) {
+    H.push('<div class="conclusion">');
+    H.push('<div style="font-size:11px;font-weight:700;color:#1B6CF2;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Analisis del consultor IA</div>');
+    H.push('<div style="font-size:11px;color:#374151;line-height:1.7">' + conclusionTexto.replace(/\n/g, '<br>') + '</div>');
+    H.push('</div>');
   }
-  ventana.document.write(htmlContent);
-  ventana.document.close();
-  setTimeout(() => {
-    ventana.focus();
-    ventana.print();
-  }, 600);
-}
 
+  // Footer
+  H.push('<div class="footer">');
+  H.push('<span>ComparaTuLED &middot; tuled.pro</span>');
+  H.push('<span>Generado el ' + fechaHoy + ' &middot; ' + email + '</span>');
+  H.push('</div>');
+  H.push('</body></html>');
+
+  const htmlFinal = H.join('\n');
+
+  // Crear Blob y descargar directamente — sin window.open, sin popups
+  const blob = new Blob([htmlFinal], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'informe-comparativa-LED-' + new Date().toISOString().slice(0,10) + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 async function submitReport() {
   const email = document.getElementById('rep-email').value.trim();

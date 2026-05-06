@@ -1026,7 +1026,7 @@ input[type=range]::-webkit-slider-thumb:hover{
   </div>
   <div class="header-sep"></div>
   <button class="header-nav-btn active" id="btn-configurador" onclick="showPage('configurador')">Configurador</button>
-  <button class="header-nav-btn" id="btn-admin" onclick="showAdminGate()">Admin Portal</button>
+  <a class="header-nav-btn" id="btn-admin" href="/?admin=1" target="_blank" rel="noopener">Admin Portal</a>
 </header>
 
 <!-- ══ CONFIGURADOR PAGE ══ -->
@@ -4810,9 +4810,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 3. Detectar si ya hay sesión activa (para recargas de página)
   const { data: { session } } = await window.supabaseClient.auth.getSession();
-  if (session) {
-    // Si ya estaban logueados y recargaron mientras estaban en /admin, restaurar sesión
-    // pero no navegar automáticamente — solo tenerla disponible
+  if (new URLSearchParams(window.location.search).get('admin') === '1') {
+    showAdminGate();
   }
 
   // 4. Escuchar cambios de autenticación (login/logout)

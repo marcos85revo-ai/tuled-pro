@@ -12,7 +12,7 @@ exports.handler = async function(event) {
   try { body = JSON.parse(event.body); }
   catch(e) { return { statusCode: 400, body: JSON.stringify({ error: 'JSON inválido' }) }; }
 
-  const { productos, configuracion } = body;
+  const { productos, configuracion, lang } = body;
   if (!productos || !configuracion) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Faltan datos' }) };
   }
@@ -21,11 +21,9 @@ exports.handler = async function(event) {
   const p2 = productos[1] || {};
   const p3 = productos[2] || {};
 
-  const esAbsenP1 = (p1.fabricante || '').toLowerCase().includes('absen');
-  const esAbsenP2 = (p2.fabricante || '').toLowerCase().includes('absen');
-  const diferenciaScore = (p1.score && p2.score) ? (p1.score - p2.score) : 99;
+  const isEn = lang === 'en';
 
-  const systemPrompt = `Eres un consultor especialista en tecnología de pantallas LED y soluciones AV (Audio-Visual) profesionales con más de 15 años de experiencia asesorando a empresas en Europa y Latinoamérica.
+  const systemPromptEs = `Eres un consultor especialista en tecnología de pantallas LED y soluciones AV (Audio-Visual) profesionales con más de 15 años de experiencia asesorando a empresas en Europa y Latinoamérica.
 
 Tu función es redactar una conclusión de recomendación clara, honesta y profesional para un cliente que acaba de usar un configurador de pantallas LED. La conclusión debe:
 
@@ -41,7 +39,23 @@ REGLA ABSEN: Si el modelo #1 es de fabricante Absen, defiéndelo con argumentos 
 
 Termina siempre con una frase que invite al cliente a contactar para dar el siguiente paso, sin ser agresiva ni comercial.`;
 
-  const userPrompt = `Genera la conclusión de recomendación para este cliente. Aquí tienes toda la información de su configuración y los resultados:
+  const systemPromptEn = `You are a specialist consultant in LED screen technology and professional AV (Audio-Visual) solutions with over 15 years of experience advising companies across Europe and Latin America.
+
+Your role is to write a clear, honest and professional recommendation conclusion for a client who has just used an LED screen configurator. The conclusion must:
+
+— Be written in English, with a senior consultant tone: confident, direct, yet approachable. No unnecessary jargon.
+— Be between 120 and 180 words. No more, no less.
+— Start by validating the client's choice (their scenario and needs).
+— Argue why model #1 is the best option, using 2 or 3 specific technical data points from the product.
+— NOT use bullets, lists or asterisks. Continuous paragraphs only.
+— NOT invent specifications. Only use the data provided.
+— NOT mention models #2 and #3 in the main body, except for the Absen exception below.
+
+ABSEN RULE: If model #1 is from Absen, defend it with concrete technical arguments (pixel pitch, brightness, technology, certifications) and briefly mention that Absen has a consolidated presence in corporate and broadcast installations across Europe. If model #1 is NOT Absen but model #2 IS Absen and its score is within 5 points of #1, add a short final paragraph (maximum 2 sentences) suggesting that the Absen model is also a solid alternative worth considering, and why.
+
+Always end with a sentence inviting the client to get in touch for the next step, without being pushy or overly commercial.`;
+
+  const userPromptEs = `Genera la conclusión de recomendación para este cliente. Aquí tienes toda la información de su configuración y los resultados:
 
 PERFIL DE LA SOLICITUD
 · Entorno de instalación: ${configuracion.entorno || '—'}
@@ -70,6 +84,39 @@ MODELO #3 (score: ${p3.score}/100)
 · Fabricante: ${p3.fabricante || '—'} · Modelo: ${p3.modelo || '—'} · Pitch: P${p3.pitch_mm || '—'} mm · Brillo: ${p3.brillo_max_nits ? p3.brillo_max_nits+' nits' : '—'}
 
 Redacta ahora la conclusión siguiendo exactamente las instrucciones de tu rol.`;
+
+  const userPromptEn = `Generate the recommendation conclusion for this client. Here is all the information about their configuration and results:
+
+REQUEST PROFILE
+· Installation environment: ${configuracion.entorno || '—'}
+· Screen size: ${configuracion.ancho ? configuracion.ancho+'m × '+configuracion.alto+'m ('+configuracion.area+' m²)' : '—'}
+· Required technology: ${configuracion.tecnologia || '—'}
+· Pixel pitch range sought: P${configuracion.pitchMin} – P${configuracion.pitchMax} mm
+· Required brightness: ${configuracion.brilloMin ? configuracion.brilloMin+'–'+configuracion.brilloMax+' nits' : '—'}
+· Required refresh rate: ${configuracion.refreshMin ? configuracion.refreshMin+'–'+configuracion.refreshMax+' Hz' : '—'}
+· Main use scenario: ${configuracion.escenario || '—'}
+
+MODEL #1 — BEST MATCH (score: ${p1.score}/100)
+· Manufacturer: ${p1.fabricante || '—'}
+· Model: ${p1.modelo || '—'}
+· Pixel pitch: P${p1.pitch_mm || '—'} mm
+· Maximum brightness: ${p1.brillo_max_nits ? p1.brillo_max_nits+' nits' : '—'}
+· Technology: ${p1.tecnologia || '—'}
+· Refresh rate: ${p1.refresh_hz ? p1.refresh_hz+' Hz' : '—'}
+· Viewing angle: ${p1.angulo_vision_h ? p1.angulo_vision_h+'° H / '+p1.angulo_vision_v+'° V' : '—'}
+· IP protection: ${p1.ip_rating || '—'}
+· Certifications: ${Array.isArray(p1.certificaciones) ? p1.certificaciones.join(', ') : (p1.certificaciones || '—')}
+
+MODEL #2 (score: ${p2.score}/100)
+· Manufacturer: ${p2.fabricante || '—'} · Model: ${p2.modelo || '—'} · Pitch: P${p2.pitch_mm || '—'} mm · Brightness: ${p2.brillo_max_nits ? p2.brillo_max_nits+' nits' : '—'}
+
+MODEL #3 (score: ${p3.score}/100)
+· Manufacturer: ${p3.fabricante || '—'} · Model: ${p3.modelo || '—'} · Pitch: P${p3.pitch_mm || '—'} mm · Brightness: ${p3.brillo_max_nits ? p3.brillo_max_nits+' nits' : '—'}
+
+Now write the conclusion following your role instructions exactly.`;
+
+  const systemPrompt = isEn ? systemPromptEn : systemPromptEs;
+  const userPrompt   = isEn ? userPromptEn   : userPromptEs;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {

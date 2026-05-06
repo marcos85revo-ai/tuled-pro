@@ -122,6 +122,10 @@ body::after{
 .header-nav-btn.active{
   border-color:#29B6F6;color:#29B6F6;
 }
+.lang-selector{display:flex;gap:4px;align-items:center;margin-right:4px}
+.lang-btn{background:transparent;border:1px solid rgba(100,140,180,0.20);color:var(--text3);padding:4px 10px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.5px}
+.lang-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+.lang-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(41,182,246,.08)}
 
 /* ── PAGES ── */
 .page{display:none;padding-top:52px;min-height:100vh;position:relative;z-index:1}
@@ -1026,6 +1030,10 @@ input[type=range]::-webkit-slider-thumb:hover{
   </div>
   <div class="header-sep"></div>
   <button class="header-nav-btn active" id="btn-configurador" onclick="showPage('configurador')">Configurador</button>
+  <div class="lang-selector">
+    <button class="lang-btn active" data-lang="es" onclick="setLang('es')">ES</button>
+    <button class="lang-btn" data-lang="en" onclick="setLang('en')">EN</button>
+  </div>
   <a class="header-nav-btn" id="btn-admin" href="/?admin=1" target="_blank" rel="noopener">Admin Portal</a>
 </header>
 
@@ -1145,6 +1153,354 @@ const SUPABASE_URL = 'https://eelxjvuabbxyjtluwhve.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlbHhqdnVhYmJ4eWp0bHV3aHZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MTUzODUsImV4cCI6MjA5MTk5MTM4NX0.Ni6h3z8SKWZOhOSn6bfXyiRllA9b6PiYugeaFZolCn0';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.supabaseClient = supabaseClient;
+
+// ═══════════════════════════════════════
+// MULTIIDIOMA — ES / EN
+// ═══════════════════════════════════════
+let currentLang = localStorage.getItem('tuled-lang') || 'es';
+function t(k) { return (LANG[currentLang] && LANG[currentLang][k]) || (LANG.es && LANG.es[k]) || k; }
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('tuled-lang', lang);
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  if (state.currentStep <= 5) renderStep(); else renderStep6();
+  updateStaticTexts();
+}
+function updateStaticTexts() {
+  const q = (sel, prop, val) => { const el = document.querySelector(sel); if(el) el[prop] = val; };
+  q('#modal-download .modal-title','textContent', t('modal_dl_title'));
+  q('#modal-download .modal-subtitle','textContent', t('modal_dl_sub'));
+  q('#dl-name','placeholder', t('ph_nombre'));
+  q('#dl-apellidos','placeholder', t('ph_apellidos'));
+  q('#dl-email','placeholder', t('ph_email'));
+  q('#modal-download .btn-modal-submit','textContent', t('modal_dl_btn'));
+  q('#modal-report .modal-title','textContent', t('modal_rep_title'));
+  q('#modal-report .modal-subtitle','textContent', t('modal_rep_sub'));
+  q('#rep-name','placeholder', t('ph_nombre'));
+  q('#rep-apellidos','placeholder', t('ph_apellidos'));
+  q('#rep-email','placeholder', t('ph_email'));
+  q('#rep-text','placeholder', t('ph_describe'));
+  q('#modal-report .btn-modal-submit','textContent', t('modal_rep_btn'));
+  q('#modal-select-models .modal-title','textContent', t('modal_sel_title'));
+  q('#modal-select-models .modal-subtitle','textContent', t('modal_sel_sub'));
+  q('#btn-confirm-compare','textContent', t('modal_sel_btn'));
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+}
+
+const LANG = {
+  es: {
+    step_label_1:'Entorno', step_label_2:'Dimensiones', step_label_3:'Tecnología',
+    step_label_4:'Pixel Pitch', step_label_5:'Escenario', step_label_6:'Resultados',
+    sc_corporativo_name:'Espacio Corporativo', sc_corporativo_desc:'Salas de reuniones, lobbies, recepción',
+    sc_control_name:'Sala de Control', sc_control_desc:'NOC, videovigilancia, centros de operaciones',
+    sc_museo_name:'Museo / Exposición', sc_museo_desc:'Arte, cultura, exhibiciones interactivas',
+    sc_retail_name:'Retail / Punto de Venta', sc_retail_desc:'Tiendas, centros comerciales, escaparates',
+    sc_broadcast_name:'Broadcast / Estudio', sc_broadcast_desc:'Platós TV, XR stages, realidad extendida',
+    sc_eventos_name:'Eventos / Espectáculos', sc_eventos_desc:'Conciertos, conferencias, convenciones',
+    sc_educacion_name:'Educación', sc_educacion_desc:'Aulas, auditorios, espacios formativos',
+    sc_hosteleria_name:'Hostelería', sc_hosteleria_desc:'Hoteles, restaurantes, bares, casinos',
+    sc_transporte_name:'Transporte / Infra.', sc_transporte_desc:'Aeropuertos, estaciones, hospitales',
+    sc_dooh_name:'Publicidad Exterior', sc_dooh_desc:'Vallas digitales, DOOH, señalización',
+    rf_sub_0:'Señalización estática', rf_sub_1:'Corporativo / Retail', rf_sub_2:'Eventos / Entretenimiento',
+    rf_sub_3:'Broadcast / Vídeo', rf_sub_4:'Sala de control / XR', rf_sub_5:'Define tu rango',
+    br_sub_0:'Interior oscuro / museo', br_sub_1:'Interior estándar / oficina',
+    br_sub_2:'Semi-exterior / escaparate', br_sub_3:'Exterior / fachada',
+    br_sub_4:'Exterior directo al sol', br_sub_5:'Define tu rango',
+    s1_eyebrow:'// PASO 01 DE 06', s1_title:'¿Cómo quieres<br>empezar?',
+    s1_sub:'Configura tu pantalla LED desde cero, o sube un pliego de licitación y lo analizamos automáticamente con IA.',
+    s1_indoor_title:'INTERIOR', s1_indoor_desc:'Espacios cerrados con luz controlada: oficinas, salas de control, museos, retail, estudios de broadcast.',
+    s1_indoor_tag1:'Pitch fino', s1_indoor_tag2:'Bajo brillo', s1_indoor_tag3:'Alta resolución',
+    s1_outdoor_title:'EXTERIOR', s1_outdoor_desc:'Espacios al aire libre con alta exposición lumínica: fachadas, estadios, vallas publicitarias, eventos.',
+    s1_outdoor_tag1:'Alto brillo', s1_outdoor_tag2:'IP65+', s1_outdoor_tag3:'Resistente',
+    s1_pliego_title:'REVISAR<br>PLIEGO', s1_pliego_desc:'Sube un pliego de licitación en PDF o Word y la IA extrae automáticamente todos los requisitos LED.',
+    s1_pliego_tag1:'Análisis IA', s1_pliego_tag2:'PDF / Word', s1_pliego_tag3:'Licitaciones',
+    s1_nav_hint:'Selecciona una opción', s1_btn_pliego:'SUBIR PLIEGO →', s1_btn_next:'SIGUIENTE →',
+    s2_eyebrow:'// PASO 02 DE 06', s2_title:'Pantalla:<br>Dimensiones, Refresco y Brillo',
+    s2_sub:'Define las características físicas y técnicas básicas de tu pantalla. Los tres parámetros se incorporan al algoritmo de selección.',
+    s2_dim_title:'DIMENSIONES', s2_dim_sub:'TAMAÑO FÍSICO DE LA PANTALLA',
+    s2_label_ancho:'ANCHO', s2_label_alto:'ALTO', s2_unit_metros:'metros',
+    s2_ar_label:'ASPECT RATIO FIJO', s2_ar_none:'Ninguno',
+    s2_dim_intro:'Introduce las dimensiones', s2_area_label:'Área total',
+    s2_refresh_title:'TASA DE REFRESCO', s2_refresh_sub:'REFRESH RATE MÍNIMO REQUERIDO',
+    s2_custom_range:'RANGO PERSONALIZADO (Hz)', s2_min_label:'MÍNIMO', s2_max_label:'MÁXIMO',
+    s2_refresh_selected:'REFRESCO SELECCIONADO', s2_app_type:'TIPO DE APLICACIÓN',
+    s2_brightness_title:'BRILLO', s2_brightness_sub:'RANGO DE NITS REQUERIDO',
+    s2_outdoor_hint:'⚠ Exterior: recomendado > 5000 nits', s2_indoor_hint:'Interior: recomendado 600–2000 nits',
+    s2_custom_range_nits:'RANGO PERSONALIZADO (nits)',
+    s2_brightness_selected:'BRILLO SELECCIONADO', s2_usage_cat:'CATEGORÍA DE USO',
+    s2_btn_back:'← ANTERIOR', s2_btn_next:'SIGUIENTE →',
+    s3_eyebrow:'// PASO 03 DE 06', s3_title:'Tecnología<br>de píxel',
+    s3_sub:'Elige la tecnología que mejor se adapta a tus requerimientos técnicos y presupuesto.',
+    s3_smd_desc:'Tecnología consolidada con excelente balance entre coste, brillo y resolución. Ideal para la mayoría de aplicaciones comerciales e instalaciones permanentes.',
+    s3_smd_tag1:'Alta disponibilidad', s3_smd_tag2:'P1.2 – P16mm', s3_smd_tag3:'Costo competitivo',
+    s3_cob_desc:'Tecnología de nueva generación. LEDs encapsulados directamente en el PCB, ofreciendo mayor protección física, mejor uniformidad y resistencia al polvo y humedad.',
+    s3_cob_tag1:'Alta protección', s3_cob_tag2:'P0.5 – P4mm', s3_cob_tag3:'Premium',
+    s3_guide_toggle:'¿Cuál tecnología elijo?',
+    s3_guide_budget:'Presupuesto ajustado', s3_guide_pitch:'Pitch < P1.5',
+    s3_guide_outdoor:'Entorno exterior', s3_guide_control:'Sala de control / broadcast',
+    s3_guide_color:'Máxima uniformidad de color',
+    s3_btn_back:'← ANTERIOR', s3_btn_next:'SIGUIENTE →',
+    s4_eyebrow:'// PASO 04 DE 06', s4_title:'Pixel Pitch',
+    s4_sub:'El pixel pitch determina la resolución y la distancia mínima de visualización. A menor pitch, mayor resolución y mayor coste.',
+    s4_pitch_min:'PITCH MÍNIMO', s4_pitch_max:'PITCH MÁXIMO',
+    s4_dist_min:'DIST. MÍNIMA CONFORT', s4_dist_opt:'DIST. ÓPTIMA',
+    s4_resolution:'RESOLUCIÓN ESTIMADA', s4_megapixels:'MEGAPÍXELES',
+    s4_btn_back:'← ANTERIOR', s4_btn_next:'SIGUIENTE →',
+    s5_eyebrow:'// PASO 05 DE 06', s5_title:'Escenario<br>de uso',
+    s5_sub:'Selecciona el escenario principal. Puedes elegir más de uno. Esto ajusta el algoritmo de puntuación para priorizar los parámetros más relevantes para tu caso.',
+    s5_btn_back:'← ANTERIOR', s5_btn_results:'VER RESULTADOS →',
+    s6_eyebrow:'// PASO 06 DE 06 — RESULTADOS', s6_title_3:'Tus mejores opciones', s6_title_1:'Tu mejor opción',
+    s6_header_3:'Basado en tu configuración, estos son los 3 modelos más compatibles de nuestro catálogo.',
+    s6_new_config:'← Nueva configuración',
+    s6_no_eyebrow:'// PASO 06 DE 06 — RESULTADOS', s6_no_header:'Sin resultados',
+    s6_no_sub2:'No encontramos productos que cumplan con todos tus criterios de búsqueda.',
+    s6_no_results_title:'Ningún producto coincide con tu búsqueda',
+    s6_no_results_sub:'Prueba ajustando la tecnología de píxel o el rango de pixel pitch para ampliar los resultados.',
+    s6_no_change_tech:'← Cambiar tecnología', s6_no_adjust_pitch:'← Ajustar pixel pitch',
+    s6_no_new_config:'Nueva configuración',
+    s6_no_contact_title:'¿No encuentras lo que buscas?',
+    s6_no_contact_sub:'Cuéntanos tu proyecto y te ayudamos a encontrar el producto adecuado.',
+    s6_contact_btn:'⚑ Contactar',
+    s6_warn_only:'Solo encontramos', s6_warn_product:'producto', s6_warn_products:'productos',
+    s6_warn_match:'cumple', s6_warn_matchpl:'cumplen',
+    s6_warn_change_tech:'cambiar la tecnología', s6_warn_expand_pitch:'ampliar el rango de pitch',
+    s6_warn_or:'o', s6_warn_more:'para ver más opciones.',
+    s6_conclusion_title:'Conclusión',
+    s6_conclusion_loading:'Analizando compatibilidad y generando conclusión...',
+    s6_conclusion_error:'No se pudo generar la conclusión automática. Revisa tu conexión e intenta de nuevo.',
+    s6_add_model_title:'¿Tienes otro modelo en mente?',
+    s6_add_model_desc:'Sube la ficha técnica de cualquier modelo (PDF, Excel o JSON) y lo añadimos a la comparación.',
+    s6_upload_spec:'↑ Subir ficha técnica', s6_add_compare:'AÑADIR Y COMPARAR →',
+    s6_ready_title:'¿Listo para decidir?', s6_ready_sub:'Descarga el informe completo o reporta un problema',
+    s6_download_btn:'↓ DESCARGAR COMPARACIÓN', s6_report_btn:'⚑ Reportar Error',
+    rank_best:'★ MEJOR MATCH', rank_good:'★ MUY COMPATIBLE', rank_ok:'★ COMPATIBLE',
+    rank_compat_best:'Excelente compatibilidad', rank_compat_good:'Muy buena compatibilidad', rank_compat_ok:'Buena compatibilidad',
+    rank_short_1:'#1 MEJOR MATCH', rank_short_2:'#2 MUY COMPATIBLE', rank_short_3:'#3 COMPATIBLE',
+    no_image:'SIN IMAGEN', s6_see_specs:'Ver todas las especificaciones →',
+    s6_custom_compare:'// COMPARATIVA PERSONALIZADA — 2 MODELOS + FICHA EXTERNA',
+    no_products_match:'No se encontraron productos compatibles con los filtros seleccionados.',
+    fld_sec_id:'IDENTIFICACIÓN', fld_fabricante:'Fabricante', fld_modelo:'Modelo',
+    fld_tipo_led:'Tipo de LED', fld_tec_led:'Tecnología de LED', fld_tec_fab:'Tecnología fabricante', fld_pitch:'Pixel Pitch (mm)',
+    fld_sec_optico:'RENDIMIENTO ÓPTICO', fld_brillo:'Brillo máximo', fld_contraste:'Ratio de contraste',
+    fld_refresh:'Frecuencia de refresco', fld_angulo_h:'Ángulo de visión H', fld_angulo_v:'Ángulo de visión V',
+    fld_grises:'Prof. de grises', fld_gama:'Gama de color', fld_calibracion:'Calibración fábrica',
+    fld_sec_fisico:'ESPECIFICACIONES FÍSICAS', fld_modulo:'Tamaño módulo (mm)', fld_display:'Tamaño display (m)',
+    fld_profundidad:'Profundidad display', fld_resolucion:'Resolución display', fld_ip:'Protección IP',
+    fld_peso:'Peso total est.', fld_mantenimiento:'Tipo mantenimiento',
+    fld_sec_consumo:'CONSUMO ENERGÉTICO', fld_consumo_max:'Consumo máx (W/m²)', fld_consumo_avg:'Consumo prom (W/m²)',
+    fld_calor_max:'Calor máx (BTU/hr)', fld_calor_avg:'Calor prom (BTU/hr)',
+    fld_sec_info:'INFORMACIÓN ADICIONAL', fld_certs:'Certificaciones', fld_emc:'Cumplimiento EMC',
+    fld_vida:'Vida útil', fld_garantia:'Garantía',
+    sb_preview:'// PREVISUALIZACIÓN', sb_define_dims:'Define dimensiones',
+    sb_area:'ÁREA', sb_dist_min:'DIST. MIN', sb_dist_opt:'DIST. ÓPTIMA', sb_resolucion:'RESOLUCIÓN',
+    sb_summary:'// RESUMEN CONFIG', sb_entorno:'Entorno', sb_display:'Display', sb_ratio:'Ratio',
+    sb_refresco:'Refresco', sb_brillo:'Brillo', sb_tecnologia:'Tecnología', sb_pitch:'Pitch',
+    sb_escenario:'Escenario', sb_libre:'Libre', sb_no_def:'No definido',
+    modal_dl_title:'Descargar Comparación',
+    modal_dl_sub:'Introduce tus datos para registrar la descarga y obtener el informe PDF completo con la tabla comparativa y el análisis del consultor.',
+    modal_dl_btn:'↓ DESCARGAR PDF →',
+    modal_rep_title:'Reportar un Error', modal_rep_sub:'Descríbenos el problema y adjunta una imagen o documento si es necesario.',
+    modal_rep_btn:'ENVIAR REPORTE →',
+    modal_sel_title:'Selecciona 2 modelos', modal_sel_sub:'Elige 2 de los 3 modelos del Top 3 para comparar junto con tu ficha técnica.',
+    modal_sel_btn:'COMPARAR →',
+    ph_nombre:'Tu nombre', ph_apellidos:'Tus apellidos', ph_email:'Tu email *',
+    ph_describe:'Describe el error...', ph_attach:'📎 Adjuntar imagen o documento',
+    pliego_eyebrow:'// REVISAR PLIEGO — ANÁLISIS IA', pliego_title:'Sube tu<br>pliego',
+    pliego_sub:'Sube el documento de licitación en PDF o Word. La IA leerá todo el documento y extraerá exclusivamente los requisitos relacionados con pantallas LED.',
+    pliego_drag:'Arrastra aquí tu documento', pliego_or:'o selecciónalo desde tu ordenador',
+    pliego_select:'↑ Seleccionar archivo', pliego_back:'← VOLVER',
+    toast_email_req:'Introduce tu email', toast_rgpd_req:'Debes aceptar la política de privacidad',
+    toast_pdf_ok:'✓ PDF descargando...', toast_pdf_err:'Error generando PDF',
+    toast_report_sent:'✓ Reporte enviado. Gracias por tu feedback.',
+    toast_compare_ok:'Comparativa actualizada con tu modelo externo',
+    toast_max_2:'Solo puedes seleccionar 2 modelos',
+    ri_0:'Señalización estática, contenido lento', ri_1:'Presentaciones, contenido corporativo',
+    ri_2:'Vídeo fluido, eventos en directo', ri_3:'Broadcast, cámara lenta, alta calidad',
+    ri_4:'Sala de control, XR / realidad extendida', ri_5:'Aplicaciones de ultra-alta velocidad',
+    bi_0:'Interior oscuro: museos, platós, salas de reuniones',
+    bi_1:'Interior estándar: oficinas, retail, espacios corporativos',
+    bi_2:'Interior luminoso: centros comerciales, escaparates',
+    bi_3:'Semi-exterior: bajo techo con luz natural intensa',
+    bi_4:'Exterior en sombra: fachadas, estadios cubiertos',
+    bi_5:'Exterior directo: vallas digitales, DOOH',
+    bi_6:'Exterior con máxima radiación solar directa',
+    rpt_subtitle:'Informe comparativo de pantallas LED', rpt_search_config:'Configuracion de busqueda',
+    rpt_comp_table:'Tabla comparativa', rpt_param:'Parametro', rpt_ia_analysis:'Analisis del consultor IA',
+    rpt_generated:'Generado el',
+    rpt_sec_id:'IDENTIFICACION', rpt_sec_optico:'RENDIMIENTO OPTICO',
+    rpt_sec_fisico:'ESPECIFICACIONES FISICAS', rpt_sec_consumo:'CONSUMO ENERGETICO', rpt_sec_certs:'CERTIFICACIONES',
+    rpt_entorno:'Entorno', rpt_tecnologia:'Tecnologia', rpt_pitch:'Pixel Pitch', rpt_dims:'Dimensiones',
+    rpt_brillo:'Brillo', rpt_refresh:'Refresco', rpt_escenario:'Escenario', rpt_area:'Area total',
+    rpt_brillo_max:'Brillo max.', rpt_contraste:'Contraste', rpt_refresh_hz:'Refresh Hz',
+    rpt_angulo_h:'Angulo H', rpt_angulo_v:'Angulo V', rpt_grises:'Grises', rpt_ip:'IP Rating',
+    rpt_mantenimiento:'Mantenimiento', rpt_modulo:'Modulo mm', rpt_consumo_max:'Consumo max.',
+    rpt_consumo_avg:'Consumo prom.', rpt_certs:'Certificaciones', rpt_tipo_led:'Tipo LED',
+    rpt_rank_1:'#1 MEJOR MATCH', rpt_rank_2:'#2 MUY COMPATIBLE', rpt_rank_3:'#3 COMPATIBLE',
+    toast_invalid_format:'Formato no válido. Usa PDF, DOC o DOCX',
+    toast_no_products:'No hay productos para generar el informe',
+    pliego_proc_pdf:'Procesando PDF...', pliego_proc_word:'Procesando documento Word...',
+    pliego_proc_send:'Enviando a análisis IA...', pliego_proc_reading:'Extrayendo texto del documento...',
+    pliego_proc_eyebrow:'// ANALIZANDO DOCUMENTO', pliego_proc_title:'Leyendo<br>el pliego...',
+    pliego_proc_sub:'La IA está revisando el documento con lupa. Esto puede tardar entre 10 y 30 segundos según la longitud del documento.',
+    pliego_err_extract:'No se pudo extraer texto del documento. Asegúrate de que el PDF no sea solo imágenes escaneadas.',
+  },
+  en: {
+    step_label_1:'Environment', step_label_2:'Dimensions', step_label_3:'Technology',
+    step_label_4:'Pixel Pitch', step_label_5:'Scenario', step_label_6:'Results',
+    sc_corporativo_name:'Corporate Space', sc_corporativo_desc:'Meeting rooms, lobbies, reception',
+    sc_control_name:'Control Room', sc_control_desc:'NOC, video surveillance, operations centers',
+    sc_museo_name:'Museum / Exhibition', sc_museo_desc:'Art, culture, interactive exhibitions',
+    sc_retail_name:'Retail / POS', sc_retail_desc:'Stores, shopping malls, storefronts',
+    sc_broadcast_name:'Broadcast / Studio', sc_broadcast_desc:'TV studios, XR stages, extended reality',
+    sc_eventos_name:'Events / Entertainment', sc_eventos_desc:'Concerts, conferences, conventions',
+    sc_educacion_name:'Education', sc_educacion_desc:'Classrooms, auditoriums, training spaces',
+    sc_hosteleria_name:'Hospitality', sc_hosteleria_desc:'Hotels, restaurants, bars, casinos',
+    sc_transporte_name:'Transport / Infrastructure', sc_transporte_desc:'Airports, stations, hospitals',
+    sc_dooh_name:'Out-of-Home Advertising', sc_dooh_desc:'Digital billboards, DOOH, signage',
+    rf_sub_0:'Static signage', rf_sub_1:'Corporate / Retail', rf_sub_2:'Events / Entertainment',
+    rf_sub_3:'Broadcast / Video', rf_sub_4:'Control room / XR', rf_sub_5:'Define your range',
+    br_sub_0:'Dark indoor / museum', br_sub_1:'Standard indoor / office',
+    br_sub_2:'Semi-outdoor / storefront', br_sub_3:'Outdoor / facade',
+    br_sub_4:'Outdoor direct sunlight', br_sub_5:'Define your range',
+    s1_eyebrow:'// STEP 01 OF 06', s1_title:'How do you want<br>to start?',
+    s1_sub:'Configure your LED screen from scratch, or upload a tender document and we will analyze it automatically with AI.',
+    s1_indoor_title:'INDOOR', s1_indoor_desc:'Enclosed spaces with controlled light: offices, control rooms, museums, retail, broadcast studios.',
+    s1_indoor_tag1:'Fine pitch', s1_indoor_tag2:'Low brightness', s1_indoor_tag3:'High resolution',
+    s1_outdoor_title:'OUTDOOR', s1_outdoor_desc:'Open air spaces with high light exposure: facades, stadiums, billboards, events.',
+    s1_outdoor_tag1:'High brightness', s1_outdoor_tag2:'IP65+', s1_outdoor_tag3:'Weatherproof',
+    s1_pliego_title:'REVIEW<br>TENDER', s1_pliego_desc:'Upload a tender document in PDF or Word and AI automatically extracts all LED requirements.',
+    s1_pliego_tag1:'AI Analysis', s1_pliego_tag2:'PDF / Word', s1_pliego_tag3:'Tenders',
+    s1_nav_hint:'Select an option', s1_btn_pliego:'UPLOAD TENDER →', s1_btn_next:'NEXT →',
+    s2_eyebrow:'// STEP 02 OF 06', s2_title:'Screen:<br>Dimensions, Refresh & Brightness',
+    s2_sub:'Define the basic physical and technical characteristics of your screen. All three parameters feed into the selection algorithm.',
+    s2_dim_title:'DIMENSIONS', s2_dim_sub:'SCREEN PHYSICAL SIZE',
+    s2_label_ancho:'WIDTH', s2_label_alto:'HEIGHT', s2_unit_metros:'meters',
+    s2_ar_label:'FIXED ASPECT RATIO', s2_ar_none:'None',
+    s2_dim_intro:'Enter dimensions', s2_area_label:'Total area',
+    s2_refresh_title:'REFRESH RATE', s2_refresh_sub:'MINIMUM REQUIRED REFRESH RATE',
+    s2_custom_range:'CUSTOM RANGE (Hz)', s2_min_label:'MINIMUM', s2_max_label:'MAXIMUM',
+    s2_refresh_selected:'SELECTED REFRESH', s2_app_type:'APPLICATION TYPE',
+    s2_brightness_title:'BRIGHTNESS', s2_brightness_sub:'REQUIRED NITS RANGE',
+    s2_outdoor_hint:'⚠ Outdoor: recommended > 5000 nits', s2_indoor_hint:'Indoor: recommended 600–2000 nits',
+    s2_custom_range_nits:'CUSTOM RANGE (nits)',
+    s2_brightness_selected:'SELECTED BRIGHTNESS', s2_usage_cat:'USAGE CATEGORY',
+    s2_btn_back:'← BACK', s2_btn_next:'NEXT →',
+    s3_eyebrow:'// STEP 03 OF 06', s3_title:'Pixel<br>Technology',
+    s3_sub:'Choose the technology that best fits your technical requirements and budget.',
+    s3_smd_desc:'Established technology with an excellent balance between cost, brightness and resolution. Ideal for most commercial applications and permanent installations.',
+    s3_smd_tag1:'High availability', s3_smd_tag2:'P1.2 – P16mm', s3_smd_tag3:'Competitive cost',
+    s3_cob_desc:'Next-generation technology. LEDs encapsulated directly onto the PCB, offering greater physical protection, better uniformity and resistance to dust and moisture.',
+    s3_cob_tag1:'High protection', s3_cob_tag2:'P0.5 – P4mm', s3_cob_tag3:'Premium',
+    s3_guide_toggle:'Which technology should I choose?',
+    s3_guide_budget:'Tight budget', s3_guide_pitch:'Pitch < P1.5',
+    s3_guide_outdoor:'Outdoor environment', s3_guide_control:'Control room / broadcast',
+    s3_guide_color:'Maximum color uniformity',
+    s3_btn_back:'← BACK', s3_btn_next:'NEXT →',
+    s4_eyebrow:'// STEP 04 OF 06', s4_title:'Pixel Pitch',
+    s4_sub:'Pixel pitch determines resolution and minimum viewing distance. The finer the pitch, the higher the resolution and the higher the cost.',
+    s4_pitch_min:'MINIMUM PITCH', s4_pitch_max:'MAXIMUM PITCH',
+    s4_dist_min:'MIN. COMFORT DISTANCE', s4_dist_opt:'OPTIMAL DISTANCE',
+    s4_resolution:'ESTIMATED RESOLUTION', s4_megapixels:'MEGAPIXELS',
+    s4_btn_back:'← BACK', s4_btn_next:'NEXT →',
+    s5_eyebrow:'// STEP 05 OF 06', s5_title:'Use<br>scenario',
+    s5_sub:'Select the main scenario. You can choose more than one. This adjusts the scoring algorithm to prioritize the most relevant parameters for your case.',
+    s5_btn_back:'← BACK', s5_btn_results:'SEE RESULTS →',
+    s6_eyebrow:'// STEP 06 OF 06 — RESULTS', s6_title_3:'Your best options', s6_title_1:'Your best match',
+    s6_header_3:'Based on your configuration, these are the 3 most compatible models in our catalog.',
+    s6_new_config:'← New configuration',
+    s6_no_eyebrow:'// STEP 06 OF 06 — RESULTS', s6_no_header:'No results',
+    s6_no_sub2:'No products found that match all your search criteria.',
+    s6_no_results_title:'No product matches your search',
+    s6_no_results_sub:'Try adjusting the pixel technology or pixel pitch range to broaden your results.',
+    s6_no_change_tech:'← Change technology', s6_no_adjust_pitch:'← Adjust pixel pitch',
+    s6_no_new_config:'New configuration',
+    s6_no_contact_title:"Can't find what you're looking for?",
+    s6_no_contact_sub:"Tell us about your project and we'll help you find the right product.",
+    s6_contact_btn:'⚑ Contact us',
+    s6_warn_only:'We only found', s6_warn_product:'product', s6_warn_products:'products',
+    s6_warn_match:'matches', s6_warn_matchpl:'match',
+    s6_warn_change_tech:'change the technology', s6_warn_expand_pitch:'expand the pitch range',
+    s6_warn_or:'or', s6_warn_more:'to see more options.',
+    s6_conclusion_title:'Conclusion',
+    s6_conclusion_loading:'Analyzing compatibility and generating conclusion...',
+    s6_conclusion_error:'Could not generate the automatic conclusion. Check your connection and try again.',
+    s6_add_model_title:'Have another model in mind?',
+    s6_add_model_desc:'Upload the datasheet of any model (PDF, Excel or JSON) and we will add it to the comparison.',
+    s6_upload_spec:'↑ Upload datasheet', s6_add_compare:'ADD & COMPARE →',
+    s6_ready_title:'Ready to decide?', s6_ready_sub:'Download the full report or report an issue',
+    s6_download_btn:'↓ DOWNLOAD COMPARISON', s6_report_btn:'⚑ Report Issue',
+    rank_best:'★ BEST MATCH', rank_good:'★ HIGHLY COMPATIBLE', rank_ok:'★ COMPATIBLE',
+    rank_compat_best:'Excellent compatibility', rank_compat_good:'Very good compatibility', rank_compat_ok:'Good compatibility',
+    rank_short_1:'#1 BEST MATCH', rank_short_2:'#2 HIGHLY COMPATIBLE', rank_short_3:'#3 COMPATIBLE',
+    no_image:'NO IMAGE', s6_see_specs:'View all specifications →',
+    s6_custom_compare:'// CUSTOM COMPARISON — 2 MODELS + EXTERNAL SPEC',
+    no_products_match:'No compatible products found for the selected filters.',
+    fld_sec_id:'IDENTIFICATION', fld_fabricante:'Manufacturer', fld_modelo:'Model',
+    fld_tipo_led:'LED Type', fld_tec_led:'LED Technology', fld_tec_fab:'Manufacturer Technology', fld_pitch:'Pixel Pitch (mm)',
+    fld_sec_optico:'OPTICAL PERFORMANCE', fld_brillo:'Max Brightness', fld_contraste:'Contrast ratio',
+    fld_refresh:'Refresh rate', fld_angulo_h:'Viewing angle H', fld_angulo_v:'Viewing angle V',
+    fld_grises:'Greyscale depth', fld_gama:'Color gamut', fld_calibracion:'Factory calibration',
+    fld_sec_fisico:'PHYSICAL SPECIFICATIONS', fld_modulo:'Module size (mm)', fld_display:'Display size (m)',
+    fld_profundidad:'Display depth', fld_resolucion:'Display resolution', fld_ip:'IP protection',
+    fld_peso:'Est. total weight', fld_mantenimiento:'Maintenance type',
+    fld_sec_consumo:'POWER CONSUMPTION', fld_consumo_max:'Max consumption (W/m²)', fld_consumo_avg:'Avg consumption (W/m²)',
+    fld_calor_max:'Max heat (BTU/hr)', fld_calor_avg:'Avg heat (BTU/hr)',
+    fld_sec_info:'ADDITIONAL INFORMATION', fld_certs:'Certifications', fld_emc:'EMC compliance',
+    fld_vida:'Lifespan', fld_garantia:'Warranty',
+    sb_preview:'// PREVIEW', sb_define_dims:'Define dimensions',
+    sb_area:'AREA', sb_dist_min:'MIN. DIST', sb_dist_opt:'OPT. DISTANCE', sb_resolucion:'RESOLUTION',
+    sb_summary:'// CONFIG SUMMARY', sb_entorno:'Environment', sb_display:'Display', sb_ratio:'Ratio',
+    sb_refresco:'Refresh', sb_brillo:'Brightness', sb_tecnologia:'Technology', sb_pitch:'Pitch',
+    sb_escenario:'Scenario', sb_libre:'Free', sb_no_def:'Not defined',
+    modal_dl_title:'Download Comparison',
+    modal_dl_sub:'Enter your details to register the download and get the full PDF report with the comparison table and the consultant analysis.',
+    modal_dl_btn:'↓ DOWNLOAD PDF →',
+    modal_rep_title:'Report an Issue', modal_rep_sub:'Describe the problem and attach an image or document if needed.',
+    modal_rep_btn:'SEND REPORT →',
+    modal_sel_title:'Select 2 models', modal_sel_sub:'Choose 2 of the 3 Top 3 models to compare alongside your datasheet.',
+    modal_sel_btn:'COMPARE →',
+    ph_nombre:'Your first name', ph_apellidos:'Your last name', ph_email:'Your email *',
+    ph_describe:'Describe the issue...', ph_attach:'📎 Attach image or document',
+    pliego_eyebrow:'// REVIEW TENDER — AI ANALYSIS', pliego_title:'Upload your<br>tender',
+    pliego_sub:'Upload the tender document in PDF or Word. AI will read the entire document and extract only the LED screen requirements.',
+    pliego_drag:'Drag your document here', pliego_or:'or select it from your computer',
+    pliego_select:'↑ Select file', pliego_back:'← BACK',
+    toast_email_req:'Please enter your email', toast_rgpd_req:'You must accept the privacy policy',
+    toast_pdf_ok:'✓ Downloading PDF...', toast_pdf_err:'Error generating PDF',
+    toast_report_sent:'✓ Report sent. Thank you for your feedback.',
+    toast_compare_ok:'Comparison updated with your external model',
+    toast_max_2:'You can only select 2 models',
+    ri_0:'Static signage, slow content', ri_1:'Presentations, corporate content',
+    ri_2:'Smooth video, live events', ri_3:'Broadcast, slow motion, high quality',
+    ri_4:'Control room, XR / extended reality', ri_5:'Ultra-high speed applications',
+    bi_0:'Dark indoor: museums, studios, meeting rooms',
+    bi_1:'Standard indoor: offices, retail, corporate spaces',
+    bi_2:'Bright indoor: shopping malls, storefronts',
+    bi_3:'Semi-outdoor: covered with intense natural light',
+    bi_4:'Outdoor shade: facades, covered stadiums',
+    bi_5:'Direct outdoor: digital billboards, DOOH',
+    bi_6:'Outdoor with maximum direct solar radiation',
+    rpt_subtitle:'LED screen comparison report', rpt_search_config:'Search configuration',
+    rpt_comp_table:'Comparison table', rpt_param:'Parameter', rpt_ia_analysis:'AI consultant analysis',
+    rpt_generated:'Generated on',
+    rpt_sec_id:'IDENTIFICATION', rpt_sec_optico:'OPTICAL PERFORMANCE',
+    rpt_sec_fisico:'PHYSICAL SPECIFICATIONS', rpt_sec_consumo:'POWER CONSUMPTION', rpt_sec_certs:'CERTIFICATIONS',
+    rpt_entorno:'Environment', rpt_tecnologia:'Technology', rpt_pitch:'Pixel Pitch', rpt_dims:'Dimensions',
+    rpt_brillo:'Brightness', rpt_refresh:'Refresh', rpt_escenario:'Scenario', rpt_area:'Total area',
+    rpt_brillo_max:'Max brightness', rpt_contraste:'Contrast', rpt_refresh_hz:'Refresh Hz',
+    rpt_angulo_h:'Angle H', rpt_angulo_v:'Angle V', rpt_grises:'Greyscale', rpt_ip:'IP Rating',
+    rpt_mantenimiento:'Maintenance', rpt_modulo:'Module mm', rpt_consumo_max:'Max consumption',
+    rpt_consumo_avg:'Avg consumption', rpt_certs:'Certifications', rpt_tipo_led:'LED Type',
+    rpt_rank_1:'#1 BEST MATCH', rpt_rank_2:'#2 HIGHLY COMPATIBLE', rpt_rank_3:'#3 COMPATIBLE',
+    toast_invalid_format:'Invalid format. Use PDF, DOC or DOCX',
+    toast_no_products:'No products available to generate the report',
+    pliego_proc_pdf:'Processing PDF...', pliego_proc_word:'Processing Word document...',
+    pliego_proc_send:'Sending to AI analysis...', pliego_proc_reading:'Extracting text from document...',
+    pliego_proc_eyebrow:'// ANALYZING DOCUMENT', pliego_proc_title:'Reading<br>the document...',
+    pliego_proc_sub:'AI is reviewing the document in detail. This may take between 10 and 30 seconds depending on document length.',
+    pliego_err_extract:'Could not extract text from the document. Make sure the PDF is not a scanned image only.',
+  }
+};
 
 // ═══════════════════════════════════════
 // DATA — Demo catalogue
@@ -1280,12 +1636,7 @@ const state = {
 };
 
 const STEPS = [
-  {num:1,label:'Entorno'},
-  {num:2,label:'Dimensiones'},
-  {num:3,label:'Tecnología'},
-  {num:4,label:'Pixel Pitch'},
-  {num:5,label:'Escenario'},
-  {num:6,label:'Resultados'},
+  {num:1}, {num:2}, {num:3}, {num:4}, {num:5}, {num:6}
 ];
 
 const AR_RATIOS = {
@@ -1461,7 +1812,7 @@ function renderProgress() {
     <div class="progress-step ${s.num === state.currentStep ? 'active' : s.num < state.currentStep ? 'done' : ''}"
          onclick="if(${s.num} < ${state.currentStep}) goToStep(${s.num})">
       <div class="progress-step-num">${s.num < state.currentStep ? '✓' : '0'+s.num}</div>
-      <div class="progress-step-label">${s.label}</div>
+      <div class="progress-step-label">${t('step_label_'+s.num)}</div>
     </div>`).join('');
 }
 
@@ -1492,30 +1843,30 @@ function renderSidebar() {
   }
 
   sb.innerHTML = `
-    <div class="sidebar-preview-title">// PREVISUALIZACIÓN</div>
+    <div class="sidebar-preview-title">${t('sb_preview')}</div>
     <div class="screen-preview-wrap">
       <div class="screen-preview-rect" style="width:${preW}px;height:${preH}px">
-        <div class="screen-dim-label">${w !== '—' ? w+'m × '+h+'m' : 'Define dimensiones'}</div>
+        <div class="screen-dim-label">${w !== '—' ? w+'m × '+h+'m' : t('sb_define_dims')}</div>
       </div>
     </div>
     <div class="sidebar-stats">
-      <div class="sidebar-stat"><span class="sidebar-stat-label">ÁREA</span><span class="sidebar-stat-value">${area}</span></div>
-      <div class="sidebar-stat"><span class="sidebar-stat-label">DIST. MIN</span><span class="sidebar-stat-value">${distMin}</span></div>
-      <div class="sidebar-stat"><span class="sidebar-stat-label">DIST. ÓPTIMA</span><span class="sidebar-stat-value">${distOpt}</span></div>
-      <div class="sidebar-stat"><span class="sidebar-stat-label">RESOLUCIÓN</span><span class="sidebar-stat-value" style="font-size:10px">${resText}</span></div>
+      <div class="sidebar-stat"><span class="sidebar-stat-label">${t('sb_area')}</span><span class="sidebar-stat-value">${area}</span></div>
+      <div class="sidebar-stat"><span class="sidebar-stat-label">${t('sb_dist_min')}</span><span class="sidebar-stat-value">${distMin}</span></div>
+      <div class="sidebar-stat"><span class="sidebar-stat-label">${t('sb_dist_opt')}</span><span class="sidebar-stat-value">${distOpt}</span></div>
+      <div class="sidebar-stat"><span class="sidebar-stat-label">${t('sb_resolucion')}</span><span class="sidebar-stat-value" style="font-size:10px">${resText}</span></div>
     </div>
     ${state.currentStep >= 5 ? `
     <div style="margin-top:16px">
     <div class="summary-block">
-      <div class="summary-title">// RESUMEN CONFIG</div>
-      ${summaryRow('Entorno', state.entorno)}
-      ${summaryRow('Display', state.ancho ? state.ancho+'m × '+state.alto+'m' : null)}
-      ${summaryRow('Ratio', state.aspectRatio !== 'none' ? state.aspectRatio : 'Libre')}
-      ${summaryRow('Refresco', state.refreshMin ? (state.refreshMin === state.refreshMax ? state.refreshMin.toLocaleString()+' Hz' : state.refreshMin.toLocaleString()+'–'+state.refreshMax.toLocaleString()+' Hz') : null)}
-      ${summaryRow('Brillo', state.brilloMin ? (state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits') : null)}
-      ${summaryRow('Tecnología', state.tecnologia)}
-      ${summaryRow('Pitch', state.pitchMin ? 'P'+state.pitchMin+' – P'+state.pitchMax : null)}
-      ${summaryRow('Escenario', state.escenarios.length ? SCENARIOS.find(s=>s.id===state.escenarios[0])?.name : null)}
+      <div class="summary-title">${t('sb_summary')}</div>
+      ${summaryRow(t('sb_entorno'), state.entorno)}
+      ${summaryRow(t('sb_display'), state.ancho ? state.ancho+'m × '+state.alto+'m' : null)}
+      ${summaryRow(t('sb_ratio'), state.aspectRatio !== 'none' ? state.aspectRatio : t('sb_libre'))}
+      ${summaryRow(t('sb_refresco'), state.refreshMin ? (state.refreshMin === state.refreshMax ? state.refreshMin.toLocaleString()+' Hz' : state.refreshMin.toLocaleString()+'–'+state.refreshMax.toLocaleString()+' Hz') : null)}
+      ${summaryRow(t('sb_brillo'), state.brilloMin ? (state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits') : null)}
+      ${summaryRow(t('sb_tecnologia'), state.tecnologia)}
+      ${summaryRow(t('sb_pitch'), state.pitchMin ? 'P'+state.pitchMin+' – P'+state.pitchMax : null)}
+      ${summaryRow(t('sb_escenario'), state.escenarios.length ? t('sc_'+state.escenarios[0]+'_name') : null)}
     </div>
     </div>` : ''}
   `;
@@ -1524,7 +1875,7 @@ function renderSidebar() {
 function summaryRow(key, val) {
   return `<div class="summary-row">
     <span class="summary-key">${key}</span>
-    <span class="summary-val ${!val ? 'empty' : ''}">${val || 'No definido'}</span>
+    <span class="summary-val ${!val ? 'empty' : ''}">${val || t('sb_no_def')}</span>
   </div>`;
 }
 
@@ -1554,9 +1905,9 @@ function renderStep() {
 
 function renderStep1(el) {
   el.innerHTML = `
-    <div class="step-eyebrow">// PASO 01 DE 06</div>
-    <div class="step-title">¿Cómo quieres<br>empezar?</div>
-    <div class="step-subtitle">Configura tu pantalla LED desde cero, o sube un pliego de licitación y lo analizamos automáticamente con IA.</div>
+    <div class="step-eyebrow">${t('s1_eyebrow')}</div>
+    <div class="step-title">${t('s1_title')}</div>
+    <div class="step-subtitle">${t('s1_sub')}</div>
     <div class="choice-grid" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
       <div class="choice-card card-anim ${state.entorno==='Indoor'?'selected':''}" onclick="selectEntorno('Indoor')" style="animation-delay:.05s">
         <div class="card-check">${state.entorno==='Indoor'?'✓':''}</div>
@@ -1571,12 +1922,12 @@ function renderStep1(el) {
             <polygon points="22,3 2,15 42,15" fill="rgba(41,182,246,0.25)" stroke="#29B6F6" stroke-width="1.8" stroke-linejoin="round"/>
           </svg>
         </span>
-        <div class="card-title">INTERIOR</div>
-        <div class="card-desc">Espacios cerrados con luz controlada: oficinas, salas de control, museos, retail, estudios de broadcast.</div>
+        <div class="card-title">${t('s1_indoor_title')}</div>
+        <div class="card-desc">${t('s1_indoor_desc')}</div>
         <div class="card-tags">
-          <span class="card-tag">Pitch fino</span>
-          <span class="card-tag">Bajo brillo</span>
-          <span class="card-tag">Alta resolución</span>
+          <span class="card-tag">${t('s1_indoor_tag1')}</span>
+          <span class="card-tag">${t('s1_indoor_tag2')}</span>
+          <span class="card-tag">${t('s1_indoor_tag3')}</span>
         </div>
       </div>
       <div class="choice-card card-anim ${state.entorno==='Outdoor'?'selected-orange':''}" onclick="selectEntorno('Outdoor')" style="animation-delay:.1s">
@@ -1595,12 +1946,12 @@ function renderStep1(el) {
             <circle cx="22" cy="22" r="10" stroke="#00C896" stroke-width="1.5" fill="none"/>
           </svg>
         </span>
-        <div class="card-title">EXTERIOR</div>
-        <div class="card-desc">Espacios al aire libre con alta exposición lumínica: fachadas, estadios, vallas publicitarias, eventos.</div>
+        <div class="card-title">${t('s1_outdoor_title')}</div>
+        <div class="card-desc">${t('s1_outdoor_desc')}</div>
         <div class="card-tags">
-          <span class="card-tag">Alto brillo</span>
-          <span class="card-tag">IP65+</span>
-          <span class="card-tag">Resistente</span>
+          <span class="card-tag">${t('s1_outdoor_tag1')}</span>
+          <span class="card-tag">${t('s1_outdoor_tag2')}</span>
+          <span class="card-tag">${t('s1_outdoor_tag3')}</span>
         </div>
       </div>
       <div class="choice-card card-anim ${state.modoPliego?'selected-green':''}" onclick="activarModoPliego()" style="animation-delay:.15s;position:relative">
@@ -1616,21 +1967,21 @@ function renderStep1(el) {
             <line x1="32" y1="29" x2="32" y2="35" stroke="#00E6A8" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </span>
-        <div class="card-title">REVISAR<br>PLIEGO</div>
-        <div class="card-desc">Sube un pliego de licitación en PDF o Word y la IA extrae automáticamente todos los requisitos LED.</div>
+        <div class="card-title">${t('s1_pliego_title')}</div>
+        <div class="card-desc">${t('s1_pliego_desc')}</div>
         <div class="card-tags">
-          <span class="card-tag">Análisis IA</span>
-          <span class="card-tag">PDF / Word</span>
-          <span class="card-tag">Licitaciones</span>
+          <span class="card-tag">${t('s1_pliego_tag1')}</span>
+          <span class="card-tag">${t('s1_pliego_tag2')}</span>
+          <span class="card-tag">${t('s1_pliego_tag3')}</span>
         </div>
         <div style="position:absolute;top:10px;left:14px;font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 7px;border-radius:3px;background:rgba(0,230,168,.15);color:var(--green);border:1px solid rgba(0,230,168,.3);letter-spacing:1px">IA</div>
       </div>
     </div>
     <div class="step-nav">
-      <span class="step-nav-info font-mono">Selecciona una opción</span>
+      <span class="step-nav-info font-mono">${t('s1_nav_hint')}</span>
       <div style="margin-left:auto">
         <button class="btn-next" ${(!state.entorno && !state.modoPliego)?'disabled':''} onclick="${state.modoPliego ? 'mostrarPantallaPliegos()' : 'nextStep()'}">
-          ${state.modoPliego ? 'SUBIR PLIEGO →' : 'SIGUIENTE →'}
+          ${state.modoPliego ? t('s1_btn_pliego') : t('s1_btn_next')}
         </button>
       </div>
     </div>`;
@@ -1668,9 +2019,9 @@ function renderStep2(el) {
   );
 
   el.innerHTML = `
-    <div class="step-eyebrow">// PASO 02 DE 06</div>
-    <div class="step-title">Pantalla:<br>Dimensiones, Refresco y Brillo</div>
-    <div class="step-subtitle">Define las características físicas y técnicas básicas de tu pantalla. Los tres parámetros se incorporan al algoritmo de selección.</div>
+    <div class="step-eyebrow">${t('s2_eyebrow')}</div>
+    <div class="step-title">${t('s2_title')}</div>
+    <div class="step-subtitle">${t('s2_sub')}</div>
 
     <!-- ══════════════════════════════ -->
     <!-- BLOQUE 1 — DIMENSIONES        -->
@@ -1679,40 +2030,40 @@ function renderStep2(el) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <div style="width:28px;height:28px;background:var(--cyan-dim);border:1px solid rgba(0,212,255,.3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">⬚</div>
         <div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">DIMENSIONES</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">TAMAÑO FÍSICO DE LA PANTALLA</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">${t('s2_dim_title')}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">${t('s2_dim_sub')}</div>
         </div>
       </div>
 
       <div class="input-row" style="margin-bottom:14px">
         <div class="field-wrap">
-          <div class="field-label">ANCHO</div>
+          <div class="field-label">${t('s2_label_ancho')}</div>
           <input class="field-input" type="number" id="inp-ancho" min="0.1" max="100" step="0.1" placeholder="0.00" value="${state.anchoOrig||''}" oninput="updateDims()">
-          <div class="field-unit">metros</div>
+          <div class="field-unit">${t('s2_unit_metros')}</div>
         </div>
         <div class="field-wrap">
-          <div class="field-label">ALTO</div>
+          <div class="field-label">${t('s2_label_alto')}</div>
           <input class="field-input" type="number" id="inp-alto" min="0.1" max="100" step="0.1" placeholder="0.00" value="${state.altoOrig||''}" oninput="updateDims()">
-          <div class="field-unit">metros</div>
+          <div class="field-unit">${t('s2_unit_metros')}</div>
         </div>
       </div>
 
       <div class="ar-group" style="margin-bottom:14px">
-        <div class="ar-label">ASPECT RATIO FIJO</div>
+        <div class="ar-label">${t('s2_ar_label')}</div>
         <div class="ar-buttons">
           ${['none','16:9','21:9','32:9'].map(ar=>`
-          <button class="ar-btn ${state.aspectRatio===ar?'active':''}" onclick="selectAR('${ar}')">${ar==='none'?'Ninguno':ar}</button>`).join('')}
+          <button class="ar-btn ${state.aspectRatio===ar?'active':''}" onclick="selectAR('${ar}')">${ar==='none'?t('s2_ar_none'):ar}</button>`).join('')}
         </div>
       </div>
 
       <div class="dim-result" id="dim-result" style="margin-bottom:0">
         <div>
           <div class="dim-result-main" id="dim-main">${state.ancho && state.alto ? state.ancho+'m × '+state.alto+'m' : '— × —'}</div>
-          <div class="dim-result-sub">${state.aspectRatio !== 'none' && state.ancho ? 'Ajustado a '+state.aspectRatio : 'Introduce las dimensiones'}</div>
+          <div class="dim-result-sub">${state.aspectRatio !== 'none' && state.ancho ? 'Ajustado a '+state.aspectRatio : t('s2_dim_intro')}</div>
         </div>
         <div class="dim-result-area">
           <strong id="dim-area">${state.ancho && state.alto ? (state.ancho*state.alto).toFixed(2)+' m²' : '—'}</strong>
-          Área total
+          ${t('s2_area_label')}
         </div>
       </div>
     </div>
@@ -1724,8 +2075,8 @@ function renderStep2(el) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <div style="width:28px;height:28px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px">⟳</div>
         <div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">TASA DE REFRESCO</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">REFRESH RATE MÍNIMO REQUERIDO</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">${t('s2_refresh_title')}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">${t('s2_refresh_sub')}</div>
         </div>
       </div>
 
@@ -1737,21 +2088,21 @@ function renderStep2(el) {
                         color:${activeRefreshPreset===i||(p.min===null&&activeRefreshPreset===-1)?'var(--cyan)':'var(--white)'}">
               ${p.label}
             </div>
-            <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.3">${p.sub}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.3">${t('rf_sub_'+i)}</div>
           </div>`).join('')}
       </div>
 
       <div id="refresh-custom-wrap" style="display:${activeRefreshPreset === -1 ? 'block' : 'none'};margin-bottom:10px">
         <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px 18px">
-          <div class="ar-label" style="margin-bottom:10px">RANGO PERSONALIZADO (Hz)</div>
+          <div class="ar-label" style="margin-bottom:10px">${t('s2_custom_range')}</div>
           <div class="slider-group" style="margin-bottom:0">
             <div class="slider-row">
-              <span class="slider-label">MÍNIMO</span>
+              <span class="slider-label">${t('s2_min_label')}</span>
               <input type="range" id="sl-rmin" min="60" max="10000" step="60" value="${state.refreshMin||60}" oninput="updateRefresh()">
               <span class="slider-value" id="sv-rmin">${(state.refreshMin||60).toLocaleString()} Hz</span>
             </div>
             <div class="slider-row">
-              <span class="slider-label">MÁXIMO</span>
+              <span class="slider-label">${t('s2_max_label')}</span>
               <input type="range" id="sl-rmax" min="60" max="10000" step="60" value="${state.refreshMax||3840}" oninput="updateRefresh()">
               <span class="slider-value" id="sv-rmax">${(state.refreshMax||3840).toLocaleString()} Hz</span>
             </div>
@@ -1761,13 +2112,13 @@ function renderStep2(el) {
 
       <div class="info-box" style="margin-bottom:0">
         <div class="info-box-row">
-          <span class="info-box-label">REFRESCO SELECCIONADO</span>
+          <span class="info-box-label">${t('s2_refresh_selected')}</span>
           <span class="info-box-value cyan" id="iv-refresh-display">
             ${state.refreshMin === state.refreshMax ? state.refreshMin.toLocaleString()+' Hz' : state.refreshMin.toLocaleString()+'–'+state.refreshMax.toLocaleString()+' Hz'}
           </span>
         </div>
         <div class="info-box-row">
-          <span class="info-box-label">TIPO DE APLICACIÓN</span>
+          <span class="info-box-label">${t('s2_app_type')}</span>
           <span class="info-box-value" id="iv-refresh-impact" style="font-size:11px;color:var(--text2)">${getRefreshImpactLabel(state.refreshMin)}</span>
         </div>
       </div>
@@ -1780,11 +2131,11 @@ function renderStep2(el) {
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <div style="width:28px;height:28px;background:rgba(255,215,64,.08);border:1px solid rgba(255,215,64,.25);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px">☀</div>
         <div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">BRILLO</div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">RANGO DE NITS REQUERIDO</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--white);letter-spacing:.5px">${t('s2_brightness_title')}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">${t('s2_brightness_sub')}</div>
         </div>
         <div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">
-          ${state.entorno === 'Outdoor' ? '⚠ Exterior: recomendado > 5000 nits' : 'Interior: recomendado 600–2000 nits'}
+          ${state.entorno === 'Outdoor' ? t('s2_outdoor_hint') : t('s2_indoor_hint')}
         </div>
       </div>
 
@@ -1796,21 +2147,21 @@ function renderStep2(el) {
                         color:${activeBrilloPreset===i||(p.min===null&&activeBrilloPreset===-1)?'var(--yellow)':'var(--white)'}">
               ${p.label}
             </div>
-            <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.3">${p.sub}</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;line-height:1.3">${t('br_sub_'+i)}</div>
           </div>`).join('')}
       </div>
 
       <div id="brillo-custom-wrap" style="display:${activeBrilloPreset === -1 ? 'block' : 'none'};margin-bottom:10px">
         <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:14px 18px">
-          <div class="ar-label" style="margin-bottom:10px">RANGO PERSONALIZADO (nits)</div>
+          <div class="ar-label" style="margin-bottom:10px">${t('s2_custom_range_nits')}</div>
           <div class="slider-group" style="margin-bottom:0">
             <div class="slider-row">
-              <span class="slider-label">MÍNIMO</span>
+              <span class="slider-label">${t('s2_min_label')}</span>
               <input type="range" id="sl-bmin" min="300" max="15000" step="100" value="${state.brilloMin||800}" oninput="updateBrillo()">
               <span class="slider-value" id="sv-bmin" style="color:var(--yellow)">${(state.brilloMin||800).toLocaleString()} nits</span>
             </div>
             <div class="slider-row">
-              <span class="slider-label">MÁXIMO</span>
+              <span class="slider-label">${t('s2_max_label')}</span>
               <input type="range" id="sl-bmax" min="300" max="15000" step="100" value="${state.brilloMax||1500}" oninput="updateBrillo()">
               <span class="slider-value" id="sv-bmax" style="color:var(--yellow)">${(state.brilloMax||1500).toLocaleString()} nits</span>
             </div>
@@ -1820,21 +2171,21 @@ function renderStep2(el) {
 
       <div class="info-box" style="margin-bottom:0">
         <div class="info-box-row">
-          <span class="info-box-label">BRILLO SELECCIONADO</span>
+          <span class="info-box-label">${t('s2_brightness_selected')}</span>
           <span class="info-box-value" id="iv-brillo-display" style="color:var(--yellow)">
             ${state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits'}
           </span>
         </div>
         <div class="info-box-row">
-          <span class="info-box-label">CATEGORÍA DE USO</span>
+          <span class="info-box-label">${t('s2_usage_cat')}</span>
           <span class="info-box-value" id="iv-brillo-impact" style="font-size:11px;color:var(--text2)">${getBrilloImpactLabel(state.brilloMin)}</span>
         </div>
       </div>
     </div>
 
     <div class="step-nav">
-      <button class="btn-back" onclick="prevStep()">← ANTERIOR</button>
-      <button class="btn-next" ${!state.ancho||!state.alto?'disabled':''} id="btn-next-2" onclick="nextStep()">SIGUIENTE →</button>
+      <button class="btn-back" onclick="prevStep()">${t('s2_btn_back')}</button>
+      <button class="btn-next" ${!state.ancho||!state.alto?'disabled':''} id="btn-next-2" onclick="nextStep()">${t('s2_btn_next')}</button>
     </div>`;
 }
 
@@ -1903,12 +2254,12 @@ function updateRefreshDisplay() {
 }
 
 function getRefreshImpactLabel(hz) {
-  if (!hz || hz <= 60)   return 'Señalización estática, contenido lento';
-  if (hz <= 120)  return 'Presentaciones, contenido corporativo';
-  if (hz <= 240)  return 'Vídeo fluido, eventos en directo';
-  if (hz <= 960)  return 'Broadcast, cámara lenta, alta calidad';
-  if (hz <= 3840) return 'Sala de control, XR / realidad extendida';
-  return 'Aplicaciones de ultra-alta velocidad';
+  if (!hz || hz <= 60)   return t('ri_0');
+  if (hz <= 120)  return t('ri_1');
+  if (hz <= 240)  return t('ri_2');
+  if (hz <= 960)  return t('ri_3');
+  if (hz <= 3840) return t('ri_4');
+  return t('ri_5');
 }
 
 // ── BRILLO ──
@@ -1956,13 +2307,13 @@ function updateBrilloDisplay() {
 }
 
 function getBrilloImpactLabel(nits) {
-  if (!nits || nits < 400)   return 'Interior oscuro: museos, platós, salas de reuniones';
-  if (nits <= 800)   return 'Interior estándar: oficinas, retail, espacios corporativos';
-  if (nits <= 1500)  return 'Interior luminoso: centros comerciales, escaparates';
-  if (nits <= 3000)  return 'Semi-exterior: bajo techo con luz natural intensa';
-  if (nits <= 6000)  return 'Exterior en sombra: fachadas, estadios cubiertos';
-  if (nits <= 10000) return 'Exterior directo: vallas digitales, DOOH';
-  return 'Exterior con máxima radiación solar directa';
+  if (!nits || nits < 400)   return t('bi_0');
+  if (nits <= 800)   return t('bi_1');
+  if (nits <= 1500)  return t('bi_2');
+  if (nits <= 3000)  return t('bi_3');
+  if (nits <= 6000)  return t('bi_4');
+  if (nits <= 10000) return t('bi_5');
+  return t('bi_6');
 }
 
 function updateDims() {
@@ -1991,20 +2342,20 @@ function selectAR(ar) {
 
 function renderStep3(el) {
   el.innerHTML = `
-    <div class="step-eyebrow">// PASO 03 DE 06</div>
-    <div class="step-title">Tecnología<br>de píxel</div>
-    <div class="step-subtitle">Elige la tecnología que mejor se adapta a tus requerimientos técnicos y presupuesto.</div>
+    <div class="step-eyebrow">${t('s3_eyebrow')}</div>
+    <div class="step-title">${t('s3_title')}</div>
+    <div class="step-subtitle">${t('s3_sub')}</div>
     <div class="choice-grid choice-grid-2">
       <div class="choice-card card-anim ${state.tecnologia==='SMD'?'selected':''}" onclick="selectTech('SMD')" style="animation-delay:.05s">
         <div class="card-check">${state.tecnologia==='SMD'?'✓':''}</div>
         <span class="card-icon">⬛</span>
         <div class="card-title">SMD</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:6px">Surface Mounted Device</div>
-        <div class="card-desc">Tecnología consolidada con excelente balance entre coste, brillo y resolución. Ideal para la mayoría de aplicaciones comerciales e instalaciones permanentes.</div>
+        <div class="card-desc">${t('s3_smd_desc')}</div>
         <div class="card-tags">
-          <span class="card-tag">Alta disponibilidad</span>
-          <span class="card-tag">P1.2 – P16mm</span>
-          <span class="card-tag">Costo competitivo</span>
+          <span class="card-tag">${t('s3_smd_tag1')}</span>
+          <span class="card-tag">${t('s3_smd_tag2')}</span>
+          <span class="card-tag">${t('s3_smd_tag3')}</span>
         </div>
       </div>
       <div class="choice-card card-anim ${state.tecnologia==='COB'?'selected':''}" onclick="selectTech('COB')" style="animation-delay:.1s">
@@ -2012,29 +2363,29 @@ function renderStep3(el) {
         <span class="card-icon">🔲</span>
         <div class="card-title">COB</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:6px">Chip On Board</div>
-        <div class="card-desc">Tecnología de nueva generación. LEDs encapsulados directamente en el PCB, ofreciendo mayor protección física, mejor uniformidad y resistencia al polvo y humedad.</div>
+        <div class="card-desc">${t('s3_cob_desc')}</div>
         <div class="card-tags">
-          <span class="card-tag">Alta protección</span>
-          <span class="card-tag">P0.5 – P4mm</span>
-          <span class="card-tag">Premium</span>
+          <span class="card-tag">${t('s3_cob_tag1')}</span>
+          <span class="card-tag">${t('s3_cob_tag2')}</span>
+          <span class="card-tag">${t('s3_cob_tag3')}</span>
         </div>
       </div>
     </div>
     <button class="collapsible-toggle" onclick="toggleCollapsible(this)">
-      <span>▶</span> ¿Cuál tecnología elijo?
+      <span>▶</span> ${t('s3_guide_toggle')}
     </button>
     <div class="collapsible-content">
       <div class="info-box" style="margin-top:8px">
-        <div class="info-box-row"><span class="info-box-label">Presupuesto ajustado</span><span class="info-box-value">SMD</span></div>
-        <div class="info-box-row"><span class="info-box-label">Pitch &lt; P1.5</span><span class="info-box-value">COB</span></div>
-        <div class="info-box-row"><span class="info-box-label">Entorno exterior</span><span class="info-box-value">SMD</span></div>
-        <div class="info-box-row"><span class="info-box-label">Sala de control / broadcast</span><span class="info-box-value orange">COB</span></div>
-        <div class="info-box-row"><span class="info-box-label">Máxima uniformidad de color</span><span class="info-box-value orange">COB</span></div>
+        <div class="info-box-row"><span class="info-box-label">${t('s3_guide_budget')}</span><span class="info-box-value">SMD</span></div>
+        <div class="info-box-row"><span class="info-box-label">${t('s3_guide_pitch')}</span><span class="info-box-value">COB</span></div>
+        <div class="info-box-row"><span class="info-box-label">${t('s3_guide_outdoor')}</span><span class="info-box-value">SMD</span></div>
+        <div class="info-box-row"><span class="info-box-label">${t('s3_guide_control')}</span><span class="info-box-value orange">COB</span></div>
+        <div class="info-box-row"><span class="info-box-label">${t('s3_guide_color')}</span><span class="info-box-value orange">COB</span></div>
       </div>
     </div>
     <div class="step-nav">
-      <button class="btn-back" onclick="prevStep()">← ANTERIOR</button>
-      <button class="btn-next" ${!state.tecnologia?'disabled':''} onclick="nextStep()">SIGUIENTE →</button>
+      <button class="btn-back" onclick="prevStep()">${t('s3_btn_back')}</button>
+      <button class="btn-next" ${!state.tecnologia?'disabled':''} onclick="nextStep()">${t('s3_btn_next')}</button>
     </div>`;
 }
 
@@ -2059,33 +2410,33 @@ function renderStep4(el) {
   const totalMp = (pxH !== '—' && pxV !== '—') ? ((pxH*pxV)/1000000).toFixed(2) : '—';
 
   el.innerHTML = `
-    <div class="step-eyebrow">// PASO 04 DE 06</div>
-    <div class="step-title">Pixel Pitch</div>
-    <div class="step-subtitle">El pixel pitch determina la resolución y la distancia mínima de visualización. A menor pitch, mayor resolución y mayor coste.</div>
+    <div class="step-eyebrow">${t('s4_eyebrow')}</div>
+    <div class="step-title">${t('s4_title')}</div>
+    <div class="step-subtitle">${t('s4_sub')}</div>
 
     <div class="slider-group">
       <div class="slider-row">
-        <span class="slider-label">PITCH MÍNIMO</span>
+        <span class="slider-label">${t('s4_pitch_min')}</span>
         <input type="range" id="sl-pmin" min="${pRange.min}" max="${pRange.max}" step="0.1" value="${state.pitchMin}" oninput="updatePitch()">
         <span class="slider-value" id="sv-pmin">P${state.pitchMin}</span>
       </div>
       <div class="slider-row">
-        <span class="slider-label">PITCH MÁXIMO</span>
+        <span class="slider-label">${t('s4_pitch_max')}</span>
         <input type="range" id="sl-pmax" min="${pRange.min}" max="${pRange.max}" step="0.1" value="${state.pitchMax}" oninput="updatePitch()">
         <span class="slider-value" id="sv-pmax">P${state.pitchMax}</span>
       </div>
     </div>
 
     <div class="info-box">
-      <div class="info-box-row"><span class="info-box-label">DIST. MÍNIMA CONFORT</span><span class="info-box-value cyan" id="iv-distmin">${distMin} m</span></div>
-      <div class="info-box-row"><span class="info-box-label">DIST. ÓPTIMA</span><span class="info-box-value cyan" id="iv-distopt">${distOpt} m</span></div>
-      <div class="info-box-row"><span class="info-box-label">RESOLUCIÓN ESTIMADA</span><span class="info-box-value" id="iv-res" style="font-size:12px">${pxH !== '—' ? pxH.toLocaleString()+' × '+pxV.toLocaleString()+' px' : '—'}</span></div>
-      <div class="info-box-row"><span class="info-box-label">MEGAPÍXELES</span><span class="info-box-value orange" id="iv-mp">${totalMp !== '—' ? totalMp+' MP' : '—'}</span></div>
+      <div class="info-box-row"><span class="info-box-label">${t('s4_dist_min')}</span><span class="info-box-value cyan" id="iv-distmin">${distMin} m</span></div>
+      <div class="info-box-row"><span class="info-box-label">${t('s4_dist_opt')}</span><span class="info-box-value cyan" id="iv-distopt">${distOpt} m</span></div>
+      <div class="info-box-row"><span class="info-box-label">${t('s4_resolution')}</span><span class="info-box-value" id="iv-res" style="font-size:12px">${pxH !== '—' ? pxH.toLocaleString()+' × '+pxV.toLocaleString()+' px' : '—'}</span></div>
+      <div class="info-box-row"><span class="info-box-label">${t('s4_megapixels')}</span><span class="info-box-value orange" id="iv-mp">${totalMp !== '—' ? totalMp+' MP' : '—'}</span></div>
     </div>
 
     <div class="step-nav">
-      <button class="btn-back" onclick="prevStep()">← ANTERIOR</button>
-      <button class="btn-next" onclick="nextStep()">SIGUIENTE →</button>
+      <button class="btn-back" onclick="prevStep()">${t('s4_btn_back')}</button>
+      <button class="btn-next" onclick="nextStep()">${t('s4_btn_next')}</button>
     </div>`;
 }
 
@@ -2108,23 +2459,23 @@ function updatePitch() {
 
 function renderStep5(el) {
   el.innerHTML = `
-    <div class="step-eyebrow">// PASO 05 DE 06</div>
-    <div class="step-title">Escenario<br>de uso</div>
-    <div class="step-subtitle">Selecciona el escenario principal. Puedes elegir más de uno. Esto ajusta el algoritmo de puntuación para priorizar los parámetros más relevantes para tu caso.</div>
+    <div class="step-eyebrow">${t('s5_eyebrow')}</div>
+    <div class="step-title">${t('s5_title')}</div>
+    <div class="step-subtitle">${t('s5_sub')}</div>
 
     <div class="scenarios-grid">
       ${SCENARIOS.map((s,i) => `
         <div class="scenario-card card-anim ${state.escenarios.includes(s.id)?'selected':''}"
              onclick="toggleScenario('${s.id}')" style="animation-delay:${i*.04}s">
           <div class="scenario-icon">${s.icon}</div>
-          <div class="scenario-name">${s.name}</div>
-          <div class="scenario-desc">${s.desc}</div>
+          <div class="scenario-name">${t('sc_'+s.id+'_name')}</div>
+          <div class="scenario-desc">${t('sc_'+s.id+'_desc')}</div>
         </div>`).join('')}
     </div>
 
     <div class="step-nav">
-      <button class="btn-back" onclick="prevStep()">← ANTERIOR</button>
-      <button class="btn-next" ${!state.escenarios.length?'disabled':''} id="btn-next-5" onclick="nextStep()">VER RESULTADOS →</button>
+      <button class="btn-back" onclick="prevStep()">${t('s5_btn_back')}</button>
+      <button class="btn-next" ${!state.escenarios.length?'disabled':''} id="btn-next-5" onclick="nextStep()">${t('s5_btn_results')}</button>
     </div>`;
 }
 
@@ -2192,55 +2543,54 @@ function renderStep6() {
       ${state.brilloMin ? `<div class="config-chip">${icoNits}<strong>${state.brilloMin === state.brilloMax ? state.brilloMin.toLocaleString()+' nits' : state.brilloMin.toLocaleString()+'–'+state.brilloMax.toLocaleString()+' nits'}</strong></div>` : ''}
       ${state.tecnologia ? `<div class="config-chip">${icoTech}<strong>${state.tecnologia}</strong></div>` : ''}
       ${state.pitchMin ? `<div class="config-chip">${icoPitch}<strong>P${state.pitchMin}–P${state.pitchMax}mm</strong></div>` : ''}
-      ${state.escenarios.length ? `<div class="config-chip">${icoEscen}<strong>${SCENARIOS.find(s=>s.id===state.escenarios[0])?.name}</strong></div>` : ''}
-      <button class="btn-back" style="margin-left:auto" onclick="goToStep(1)">← Nueva configuración</button>
+      ${state.escenarios.length ? `<div class="config-chip">${icoEscen}<strong>${t('sc_'+state.escenarios[0]+'_name')}</strong></div>` : ''}
+      <button class="btn-back" style="margin-left:auto" onclick="goToStep(1)">${t('s6_new_config')}</button>
     </div>`;
 
   // ── CASO 0 RESULTADOS: ningún producto cumple criterios críticos ──
   if (n === 0) {
     sec.innerHTML = `
       <div class="results-header">
-        <div class="results-eyebrow">// PASO 06 DE 06 — RESULTADOS</div>
-        <div class="results-title">Sin resultados</div>
-        <div class="results-subtitle">No encontramos productos que cumplan con todos tus criterios de búsqueda.</div>
+        <div class="results-eyebrow">${t('s6_no_eyebrow')}</div>
+        <div class="results-title">${t('s6_no_header')}</div>
+        <div class="results-subtitle">${t('s6_no_sub2')}</div>
       </div>
       ${configBar}
       <div class="comparison-wrap">
         <div style="text-align:center;padding:64px 32px;background:var(--surface);border:1px solid var(--border2);border-radius:12px">
           <div style="font-size:56px;margin-bottom:20px">🔍</div>
           <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:800;color:var(--white);margin-bottom:12px">
-            Ningún producto coincide con tu búsqueda
+            ${t('s6_no_results_title')}
           </div>
           <div style="font-size:15px;color:var(--text2);max-width:520px;margin:0 auto 32px;line-height:1.6">
-            Los criterios de <strong style="color:var(--cyan)">${state.entorno}</strong> + tecnología <strong style="color:var(--cyan)">${state.tecnologia}</strong> no tienen coincidencias en nuestro catálogo actual.<br><br>
-            Prueba ajustando la tecnología de píxel o el rango de pixel pitch para ampliar los resultados.
+            ${t('s6_no_results_sub')}
           </div>
           <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-            <button class="btn-next" onclick="goToStep(3)">← Cambiar tecnología</button>
-            <button class="btn-next" style="background:linear-gradient(135deg,var(--orange),#FF3D57)" onclick="goToStep(4)">← Ajustar pixel pitch</button>
-            <button class="btn-back" onclick="goToStep(1)">Nueva configuración</button>
+            <button class="btn-next" onclick="goToStep(3)">${t('s6_no_change_tech')}</button>
+            <button class="btn-next" style="background:linear-gradient(135deg,var(--orange),#FF3D57)" onclick="goToStep(4)">${t('s6_no_adjust_pitch')}</button>
+            <button class="btn-back" onclick="goToStep(1)">${t('s6_no_new_config')}</button>
           </div>
         </div>
       </div>
       <div class="download-section">
         <div>
-          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px">¿No encuentras lo que buscas?</div>
-          <div style="font-size:13px;color:var(--text2)">Cuéntanos tu proyecto y te ayudamos a encontrar el producto adecuado.</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px">${t('s6_no_contact_title')}</div>
+          <div style="font-size:13px;color:var(--text2)">${t('s6_no_contact_sub')}</div>
         </div>
-        <button class="btn-report" onclick="openModal('modal-report')">⚑ Contactar</button>
+        <button class="btn-report" onclick="openModal('modal-report')">${t('s6_contact_btn')}</button>
       </div>`;
     return;
   }
 
   // ── CASO 1 o 2 RESULTADOS: hay productos pero menos de 3 ──
   const headerMsg = n === 3
-    ? `Basado en tu configuración, estos son los 3 modelos más compatibles de nuestro catálogo.`
-    : `Encontramos <strong style="color:var(--cyan)">${n} producto${n!==1?'s':''}</strong> que cumple${n!==1?'n':''} con tus criterios. Nuestro catálogo está en constante crecimiento — pronto habrá más opciones.`;
+    ? t('s6_header_3')
+    : `${t('s6_warn_only')} <strong style="color:var(--cyan)">${n} ${n!==1?t('s6_warn_products'):t('s6_warn_product')}</strong> ${n!==1?t('s6_warn_matchpl'):t('s6_warn_match')} ${t('s6_warn_more')}`;
 
   sec.innerHTML = `
     <div class="results-header">
-      <div class="results-eyebrow">// PASO 06 DE 06 — RESULTADOS</div>
-      <div class="results-title">${n === 3 ? 'Tus mejores opciones' : n === 1 ? 'Tu mejor opción' : 'Tus mejores opciones'}</div>
+      <div class="results-eyebrow">${t('s6_eyebrow')}</div>
+      <div class="results-title">${n === 1 ? t('s6_title_1') : t('s6_title_3')}</div>
       <div class="results-subtitle">${headerMsg}</div>
     </div>
     ${configBar}
@@ -2248,9 +2598,9 @@ function renderStep6() {
     <div style="background:rgba(255,215,64,.06);border-top:2px solid var(--yellow);border-bottom:1px solid rgba(255,215,64,.2);padding:14px 48px;display:flex;align-items:center;gap:12px">
       <span style="font-size:20px">⚠️</span>
       <span style="font-size:14px;color:var(--text2)">
-        Solo encontramos <strong style="color:var(--yellow)">${n} producto${n!==1?'s':''}</strong> que cumple${n!==1?'n':''} exactamente con tu tecnología <strong style="color:var(--cyan)">${state.tecnologia}</strong>.
-        Puedes <button onclick="goToStep(3)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">cambiar la tecnología</button> o
-        <button onclick="goToStep(4)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">ampliar el rango de pitch</button> para ver más opciones.
+        ${t('s6_warn_only')} <strong style="color:var(--yellow)">${n} ${n!==1?t('s6_warn_products'):t('s6_warn_product')}</strong> ${n!==1?t('s6_warn_matchpl'):t('s6_warn_match')} ${t('s6_warn_or')} <strong style="color:var(--cyan)">${state.tecnologia}</strong>.
+        <button onclick="goToStep(3)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">${t('s6_warn_change_tech')}</button> ${t('s6_warn_or')}
+        <button onclick="goToStep(4)" style="background:none;border:none;color:var(--cyan);cursor:pointer;font-size:14px;text-decoration:underline;padding:0">${t('s6_warn_expand_pitch')}</button> ${t('s6_warn_more')}
       </span>
     </div>` : ''}
     <div class="comparison-wrap">
@@ -2261,83 +2611,83 @@ function renderStep6() {
       <div class="conclusion-header">
         <div class="conclusion-header-icon">◆</div>
         <div>
-          <div class="conclusion-header-title">Conclusión</div>
+          <div class="conclusion-header-title">${t('s6_conclusion_title')}</div>
         </div>
       </div>
       <div class="conclusion-body" id="conclusion-body">
         <div class="conclusion-loading" id="conclusion-loading">
           <div class="conclusion-dots"><span></span><span></span><span></span></div>
-          <div class="conclusion-loading-text">Analizando compatibilidad y generando conclusión...</div>
+          <div class="conclusion-loading-text">${t('s6_conclusion_loading')}</div>
         </div>
       </div>
       <div class="conclusion-footer" id="conclusion-footer" style="display:none"></div>
     </div>
     <div class="add-model-section">
-      <div class="add-model-title">¿Tienes otro modelo en mente?</div>
-      <div class="add-model-desc">Sube la ficha técnica de cualquier modelo (PDF, Excel o JSON) y lo añadimos a la comparación.</div>
+      <div class="add-model-title">${t('s6_add_model_title')}</div>
+      <div class="add-model-desc">${t('s6_add_model_desc')}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
         <label class="btn-upload-file">
-          <span>↑</span> Subir ficha técnica
+          <span>↑</span> ${t('s6_upload_spec')}
           <input type="file" accept=".pdf,.xlsx,.json" style="display:none" onchange="handleExternalFile(this)">
         </label>
         <span id="ext-filename" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2)"></span>
-        <button class="btn-add-compare" id="btn-add-compare" style="display:none" onclick="openFichaLeadModal()">AÑADIR Y COMPARAR →</button>
+        <button class="btn-add-compare" id="btn-add-compare" style="display:none" onclick="openFichaLeadModal()">${t('s6_add_compare')}</button>
       </div>
     </div>
     <div class="download-section">
       <div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px">¿Listo para decidir?</div>
-        <div style="font-size:13px;color:var(--text2)">Descarga el informe completo o reporta un problema</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--white);margin-bottom:2px">${t('s6_ready_title')}</div>
+        <div style="font-size:13px;color:var(--text2)">${t('s6_ready_sub')}</div>
       </div>
-      <button class="btn-download" onclick="openModal('modal-download')">↓ DESCARGAR COMPARACIÓN</button>
-      <button class="btn-report" onclick="openModal('modal-report')">⚑ Reportar Error</button>
+      <button class="btn-download" onclick="openModal('modal-download')">${t('s6_download_btn')}</button>
+      <button class="btn-report" onclick="openModal('modal-report')">${t('s6_report_btn')}</button>
     </div>`;
 
   // Lanzar generación de conclusión IA automáticamente
   setTimeout(generateConclusion, 300);
 }
 
-const FIELDS = [
-  {section:'IDENTIFICACIÓN',rows:[
-    {key:'fabricante',label:'Fabricante'},
-    {key:'modelo',label:'Modelo'},
-    {key:'led_type_categoria',label:'Tipo de LED'},
-    {key:'led_type',label:'Tecnología de LED'},
-    {key:'tecnologia',label:'Tecnología fabricante'},
-    {key:'pitch_mm',label:'Pixel Pitch (mm)',unit:'mm',lower:true},
+function getFields() { return [
+  {section:t('fld_sec_id'),rows:[
+    {key:'fabricante',label:t('fld_fabricante')},
+    {key:'modelo',label:t('fld_modelo')},
+    {key:'led_type_categoria',label:t('fld_tipo_led')},
+    {key:'led_type',label:t('fld_tec_led')},
+    {key:'tecnologia',label:t('fld_tec_fab')},
+    {key:'pitch_mm',label:t('fld_pitch'),unit:'mm',lower:true},
   ]},
-  {section:'RENDIMIENTO ÓPTICO',rows:[
-    {key:'brillo_max_nits',label:'Brillo máximo',unit:'nits',lower:false},
-    {key:'contraste',label:'Ratio de contraste'},
-    {key:'refresh_hz',label:'Frecuencia de refresco',unit:'Hz',lower:false},
-    {key:'angulo_vision_h',label:'Ángulo de visión H',unit:'°',lower:false},
-    {key:'angulo_vision_v',label:'Ángulo de visión V',unit:'°',lower:false},
-    {key:'profundidad_grises_bit',label:'Prof. de grises',unit:'bit',lower:false},
-    {key:'gama_color_ntsc',label:'Gama de color',unit:'% NTSC',lower:false},
-    {key:'calibracion_fabrica',label:'Calibración fábrica'},
+  {section:t('fld_sec_optico'),rows:[
+    {key:'brillo_max_nits',label:t('fld_brillo'),unit:'nits',lower:false},
+    {key:'contraste',label:t('fld_contraste')},
+    {key:'refresh_hz',label:t('fld_refresh'),unit:'Hz',lower:false},
+    {key:'angulo_vision_h',label:t('fld_angulo_h'),unit:'°',lower:false},
+    {key:'angulo_vision_v',label:t('fld_angulo_v'),unit:'°',lower:false},
+    {key:'profundidad_grises_bit',label:t('fld_grises'),unit:'bit',lower:false},
+    {key:'gama_color_ntsc',label:t('fld_gama'),unit:'% NTSC',lower:false},
+    {key:'calibracion_fabrica',label:t('fld_calibracion')},
   ]},
-  {section:'ESPECIFICACIONES FÍSICAS',rows:[
-    {key:'modulo_size',label:'Tamaño módulo (mm)',computed:true},
-    {key:'display_size',label:'Tamaño display (m)',computed:true},
-    {key:'profundidad_display_mm',label:'Profundidad display',unit:'mm',lower:true},
-    {key:'display_res',label:'Resolución display',computed:true},
-    {key:'ip_rating',label:'Protección IP'},
-    {key:'peso_total',label:'Peso total est.',computed:true,unit:'kg',lower:true},
-    {key:'mantenimiento',label:'Tipo mantenimiento'},
+  {section:t('fld_sec_fisico'),rows:[
+    {key:'modulo_size',label:t('fld_modulo'),computed:true},
+    {key:'display_size',label:t('fld_display'),computed:true},
+    {key:'profundidad_display_mm',label:t('fld_profundidad'),unit:'mm',lower:true},
+    {key:'display_res',label:t('fld_resolucion'),computed:true},
+    {key:'ip_rating',label:t('fld_ip')},
+    {key:'peso_total',label:t('fld_peso'),computed:true,unit:'kg',lower:true},
+    {key:'mantenimiento',label:t('fld_mantenimiento')},
   ]},
-  {section:'CONSUMO ENERGÉTICO',rows:[
-    {key:'consumo_max_w_m2',label:'Consumo máx (W/m²)',unit:'W/m²',lower:true},
-    {key:'consumo_avg_w_m2',label:'Consumo prom (W/m²)',unit:'W/m²',lower:true},
-    {key:'calor_max_btu',label:'Calor máx (BTU/hr)',unit:'BTU',lower:true},
-    {key:'calor_avg_btu',label:'Calor prom (BTU/hr)',unit:'BTU',lower:true},
+  {section:t('fld_sec_consumo'),rows:[
+    {key:'consumo_max_w_m2',label:t('fld_consumo_max'),unit:'W/m²',lower:true},
+    {key:'consumo_avg_w_m2',label:t('fld_consumo_avg'),unit:'W/m²',lower:true},
+    {key:'calor_max_btu',label:t('fld_calor_max'),unit:'BTU',lower:true},
+    {key:'calor_avg_btu',label:t('fld_calor_avg'),unit:'BTU',lower:true},
   ]},
-  {section:'INFORMACIÓN ADICIONAL',rows:[
-    {key:'certificaciones',label:'Certificaciones'},
-    {key:'emc',label:'Cumplimiento EMC'},
-    {key:'vida_util_horas',label:'Vida útil',unit:'hrs',lower:false},
-    {key:'garantia_años',label:'Garantía',unit:'años',lower:false},
+  {section:t('fld_sec_info'),rows:[
+    {key:'certificaciones',label:t('fld_certs')},
+    {key:'emc',label:t('fld_emc')},
+    {key:'vida_util_horas',label:t('fld_vida'),unit:'hrs',lower:false},
+    {key:'garantia_años',label:t('fld_garantia'),unit:'años',lower:false},
   ]},
-];
+]; }
 
 function getComputedVal(key, p) {
   if (key === 'modulo_size') return `${p.modulo_ancho_mm} × ${p.modulo_alto_mm}`;
@@ -2360,14 +2710,14 @@ function getComputedVal(key, p) {
 }
 
 function buildCompTable(products) {
-  if (!products.length) return '<p style="color:var(--text2);padding:20px">No se encontraron productos compatibles con los filtros seleccionados.</p>';
+  if (!products.length) return `<p style="color:var(--text2);padding:20px">${t('no_products_match')}</p>`;
 
   const rankColors  = ['#00E6A8','#29B6F6','#F5C542'];
   const rankBg      = ['rgba(0,230,168,0.09)','rgba(41,182,246,0.07)','rgba(245,197,66,0.07)'];
   const rankBorder  = ['rgba(0,230,168,0.40)','rgba(41,182,246,0.38)','rgba(245,197,66,0.32)'];
   const rankBadgeBg = ['rgba(0,230,168,0.12)','rgba(41,182,246,0.12)','rgba(245,197,66,0.10)'];
-  const rankLabels  = ['★ MEJOR MATCH','★ MUY COMPATIBLE','★ COMPATIBLE'];
-  const rankCompat  = ['Excelente compatibilidad','Muy buena compatibilidad','Buena compatibilidad'];
+  const rankLabels  = [t('rank_best'),t('rank_good'),t('rank_ok')];
+  const rankCompat  = [t('rank_compat_best'),t('rank_compat_good'),t('rank_compat_ok')];
 
   let cards = `<div style="display:grid;grid-template-columns:repeat(${products.length},1fr);gap:12px;padding:16px 0 8px">`;
   products.forEach((p, i) => {
@@ -2382,7 +2732,7 @@ function buildCompTable(products) {
     cards += `
     <div style="background:${bg};border:1.5px solid ${brd};border-radius:14px;padding:16px">
       <div style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:${bbg};border:1px solid ${brd};font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${c};margin-bottom:10px">${rankLabels[i]}</div>
-      <div style="width:100%;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:${bbg};border:1px dashed ${brd};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;color:${c};opacity:.6">SIN IMAGEN</div>
+      <div style="width:100%;height:48px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;background:${bbg};border:1px dashed ${brd};font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1px;color:${c};opacity:.6">${t('no_image')}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#4E6880;letter-spacing:2px;margin-bottom:2px">${p.fabricante.toUpperCase()}</div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:${c};margin-bottom:7px;line-height:1.1">${p.modelo}</div>
       <div style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;background:${bbg};border:1px solid ${brd};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${c};margin-bottom:4px">▲ ${p.score} / 100</div>
@@ -2395,10 +2745,10 @@ function buildCompTable(products) {
     </div>`;
   });
   cards += `</div>
-  <div style="text-align:center;padding:6px 0 10px;font-size:13px;color:#29B6F6;cursor:pointer">Ver todas las especificaciones →</div>`;
+  <div style="text-align:center;padding:6px 0 10px;font-size:13px;color:#29B6F6;cursor:pointer">${t('s6_see_specs')}</div>`;
 
   const scoreClasses = ['','score-2','score-3'];
-  const rankLabelsShort = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+  const rankLabelsShort = [t('rank_short_1'),t('rank_short_2'),t('rank_short_3')];
 
   let thead = `<thead><tr><th></th>`;
   products.forEach((p, i) => {
@@ -2412,7 +2762,7 @@ function buildCompTable(products) {
   thead += '</tr></thead>';
 
   let tbody = '<tbody>';
-  FIELDS.forEach(section => {
+  getFields().forEach(section => {
     tbody += `<tr class="section-row"><td colspan="${products.length+1}">${section.section}</td></tr>`;
     section.rows.forEach(row => {
       const vals = products.map(p => row.computed ? getComputedVal(row.key, p) : p[row.key]);
@@ -2541,15 +2891,16 @@ async function generateConclusion() {
   bodyEl.innerHTML = `
     <div class="conclusion-loading" id="conclusion-loading">
       <div class="conclusion-dots"><span></span><span></span><span></span></div>
-      <div class="conclusion-loading-text">Analizando compatibilidad y generando conclusión...</div>
+      <div class="conclusion-loading-text">${t('s6_conclusion_loading')}</div>
     </div>`;
   if (footerEl) footerEl.style.display = 'none';
 
   const escenarioNombre = state.escenarios.length
-    ? (SCENARIOS.find(s => s.id === state.escenarios[0])?.name || state.escenarios[0])
+    ? (t('sc_'+state.escenarios[0]+'_name') || state.escenarios[0])
     : '—';
 
   const payload = {
+    lang: currentLang,
     configuracion: {
       entorno:    state.entorno,
       ancho:      state.ancho,
@@ -2607,7 +2958,7 @@ async function generateConclusion() {
 
   } catch(e) {
     console.error('Conclusión IA error:', e);
-    bodyEl.innerHTML = `<div class="conclusion-error">No se pudo generar la conclusión automática. Revisa tu conexión e intenta de nuevo.</div>`;
+    bodyEl.innerHTML = `<div class="conclusion-error">${t('s6_conclusion_error')}</div>`;
   }
 }
 
@@ -2630,26 +2981,26 @@ function mostrarPantallaPliegos() {
 
 function renderPliegoUpload(el) {
   el.innerHTML = `
-    <div class="step-eyebrow">// REVISAR PLIEGO — ANÁLISIS IA</div>
-    <div class="step-title">Sube tu<br>pliego</div>
-    <div class="step-subtitle">Sube el documento de licitación en PDF o Word. La IA leerá todo el documento y extraerá exclusivamente los requisitos relacionados con pantallas LED.</div>
+    <div class="step-eyebrow">${t('pliego_eyebrow')}</div>
+    <div class="step-title">${t('pliego_title')}</div>
+    <div class="step-subtitle">${t('pliego_sub')}</div>
 
     <div class="pliego-upload-zone" id="pliego-drop-zone"
       ondragover="event.preventDefault();this.classList.add('dragover')"
       ondragleave="this.classList.remove('dragover')"
       ondrop="handlePliegoDrop(event)">
       <span class="pliego-upload-icon">📄</span>
-      <div class="pliego-upload-title">Arrastra aquí tu documento</div>
-      <div class="pliego-upload-sub">o selecciónalo desde tu ordenador</div>
+      <div class="pliego-upload-title">${t('pliego_drag')}</div>
+      <div class="pliego-upload-sub">${t('pliego_or')}</div>
       <label class="pliego-upload-btn">
-        <span style="font-size:16px">↑</span> Seleccionar archivo
+        <span style="font-size:16px">↑</span> ${t('pliego_select')}
         <input type="file" accept=".pdf,.doc,.docx" style="display:none" onchange="handlePliegoFile(this.files[0])">
       </label>
       <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:1px">PDF · DOC · DOCX · Máx. 50 MB</div>
     </div>
 
     <div class="step-nav">
-      <button class="btn-back" onclick="goToStep(1)">← VOLVER</button>
+      <button class="btn-back" onclick="goToStep(1)">${t('pliego_back')}</button>
     </div>`;
 }
 
@@ -2664,18 +3015,18 @@ async function handlePliegoFile(file) {
   if (!file) return;
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['pdf','doc','docx'].includes(ext)) {
-    showToast('Formato no válido. Usa PDF, DOC o DOCX', 'error'); return;
+    showToast(t('toast_invalid_format'), 'error'); return;
   }
 
   // Mostrar pantalla de procesamiento
   const main = document.getElementById('wizard-main');
   main.innerHTML = `<div class="step-content">
-    <div class="step-eyebrow">// ANALIZANDO DOCUMENTO</div>
-    <div class="step-title">Leyendo<br>el pliego...</div>
-    <div class="step-subtitle">La IA está revisando el documento con lupa. Esto puede tardar entre 10 y 30 segundos según la longitud del documento.</div>
+    <div class="step-eyebrow">${t('pliego_proc_eyebrow')}</div>
+    <div class="step-title">${t('pliego_proc_title')}</div>
+    <div class="step-subtitle">${t('pliego_proc_sub')}</div>
     <div class="pliego-processing">
       <div class="pliego-dots"><span></span><span></span><span></span></div>
-      <div class="pliego-processing-text" id="pliego-status-text">Extrayendo texto del documento...</div>
+      <div class="pliego-processing-text" id="pliego-status-text">${t('pliego_proc_reading')}</div>
     </div>
   </div>`;
 
@@ -2683,18 +3034,18 @@ async function handlePliegoFile(file) {
     let textoExtraido = '';
 
     if (ext === 'pdf') {
-      document.getElementById('pliego-status-text').textContent = 'Procesando PDF...';
+      document.getElementById('pliego-status-text').textContent = t('pliego_proc_pdf');
       textoExtraido = await extraerTextoPDF(file);
     } else {
-      document.getElementById('pliego-status-text').textContent = 'Procesando documento Word...';
+      document.getElementById('pliego-status-text').textContent = t('pliego_proc_word');
       textoExtraido = await extraerTextoDocx(file);
     }
 
     if (!textoExtraido || textoExtraido.trim().length < 50) {
-      throw new Error('No se pudo extraer texto del documento. Asegúrate de que el PDF no sea solo imágenes escaneadas.');
+      throw new Error(t('pliego_err_extract'));
     }
 
-    document.getElementById('pliego-status-text').textContent = 'Enviando a análisis IA...';
+    document.getElementById('pliego-status-text').textContent = t('pliego_proc_send');
 
     const res = await fetch('/.netlify/functions/analizar-pliego', {
       method: 'POST',
@@ -3136,7 +3487,7 @@ function openSelectModels() {
 function toggleModelSelect(i) {
   const idx = state.selectedForCompare.indexOf(i);
   if (idx === -1) {
-    if (state.selectedForCompare.length >= 2) { showToast('Solo puedes seleccionar 2 modelos','error'); return; }
+    if (state.selectedForCompare.length >= 2) { showToast(t('toast_max_2'),'error'); return; }
     state.selectedForCompare.push(i);
   } else {
     state.selectedForCompare.splice(idx, 1);
@@ -3154,8 +3505,8 @@ function confirmCompare() {
   const selected = state.selectedForCompare.map(i => state.top3[i]);
   const toCompare = [...selected, state.externalProduct];
   document.getElementById('comp-table-wrap').innerHTML = buildCompTable(toCompare);
-  document.querySelector('.section-label').textContent = '// COMPARATIVA PERSONALIZADA — 2 MODELOS + FICHA EXTERNA';
-  showToast('Comparativa actualizada con tu modelo externo');
+  document.querySelector('.section-label').textContent = t('s6_custom_compare');
+  showToast(t('toast_compare_ok'));
 }
 
 // ═══════════════════════════════════════
@@ -3282,11 +3633,11 @@ async function submitDownload() {
   const apellidos = document.getElementById('dl-apellidos')?.value?.trim() || '';
   const rgpd = document.getElementById('dl-rgpd')?.checked;
 
-  if (!email) { showToast('Introduce tu email','error'); return; }
-  if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
+  if (!email) { showToast(t('toast_email_req'),'error'); return; }
+  if (!rgpd) { showToast(t('toast_rgpd_req'),'error'); return; }
 
   const btn = document.querySelector('#modal-download .btn-modal-submit');
-  if (btn) { btn.textContent = 'Generando PDF...'; btn.disabled = true; }
+  if (btn) { btn.textContent = currentLang === 'en' ? 'Generating PDF...' : 'Generando PDF...'; btn.disabled = true; }
 
   const configData = {
     entorno: state.entorno,
@@ -3328,34 +3679,34 @@ async function submitDownload() {
   try {
     generarYDescargarPDF(nombre, apellidos, email);
     closeModal('modal-download');
-    showToast('✓ PDF descargando...');
+    showToast(t('toast_pdf_ok'));
   } catch(e) {
     console.error('PDF error:', e);
-    showToast('Error generando PDF', 'error');
+    showToast(t('toast_pdf_err'), 'error');
   }
 
-  if (btn) { btn.textContent = '↓ DESCARGAR PDF →'; btn.disabled = false; }
+  if (btn) { btn.textContent = t('modal_dl_btn'); btn.disabled = false; }
 }
 
 function generarYDescargarPDF(nombre, apellidos, email) {
   const tzOpts = {timeZone:'Europe/Madrid',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'};
   const fechaHoy = new Date().toLocaleString('es-ES', tzOpts);
   const productos = state.top3 || [];
-  if (!productos.length) { showToast('No hay productos para generar el informe','error'); return; }
+  if (!productos.length) { showToast(t('toast_no_products'),'error'); return; }
 
-  const rankLabels = ['#1 MEJOR MATCH','#2 MUY COMPATIBLE','#3 COMPATIBLE'];
+  const rankLabels = [t('rpt_rank_1'), t('rpt_rank_2'), t('rpt_rank_3')];
   const rankColors = ['#00a876','#1B6CF2','#ca8a04'];
   const rankBg     = ['#f0fdf4','#eff6ff','#fefce8'];
   const rankBorder = ['#00E6A8','#29B6F6','#F5C542'];
   const rankScoreBg = ['#dcfce7','#dbeafe','#fef9c3'];
 
   const escenarioNombre = state.escenarios && state.escenarios.length
-    ? (SCENARIOS.find(s => s.id === state.escenarios[0])?.name || state.escenarios[0])
+    ? (t('sc_'+state.escenarios[0]+'_name') || state.escenarios[0])
     : '—';
 
   // Build HTML as array of strings — no nested template literals
   const H = [];
-  H.push('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">');
+  H.push('<!DOCTYPE html><html lang="' + currentLang + '"><head><meta charset="UTF-8">');
   H.push('<style>');
   H.push('*{margin:0;padding:0;box-sizing:border-box}');
   H.push('body{font-family:Arial,sans-serif;font-size:12px;color:#1a2535;padding:32px}');
@@ -3385,7 +3736,7 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   // Header
   H.push('<div class="header">');
   H.push('<div><div class="logo">COMPARA TU LED</div>');
-  H.push('<div style="font-size:10px;color:#6b7280;margin-top:4px">Informe comparativo de pantallas LED</div></div>');
+  H.push('<div style="font-size:10px;color:#6b7280;margin-top:4px">' + t('rpt_subtitle') + '</div></div>');
   H.push('<div class="meta"><div>' + fechaHoy + '</div><div>tuled.pro</div></div>');
   H.push('</div>');
 
@@ -3394,17 +3745,17 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   H.push('<div class="uinfo"><strong>' + nombreCompleto + '</strong> &middot; ' + email + '</div>');
 
   // Config
-  H.push('<div class="sec">Configuracion de busqueda</div>');
+  H.push('<div class="sec">' + t('rpt_search_config') + '</div>');
   H.push('<div class="cfgrid">');
   const chips = [
-    ['Entorno', state.entorno || '—'],
-    ['Tecnologia', state.tecnologia || '—'],
-    ['Pixel Pitch', state.pitchMin ? 'P' + state.pitchMin + '–P' + state.pitchMax : '—'],
-    ['Dimensiones', state.ancho ? state.ancho + 'x' + state.alto + 'm' : '—'],
-    ['Brillo', state.brilloMin ? state.brilloMin + '–' + state.brilloMax + ' nits' : '—'],
-    ['Refresco', state.refreshMin ? state.refreshMin + '–' + state.refreshMax + ' Hz' : '—'],
-    ['Escenario', escenarioNombre],
-    ['Area total', state.ancho ? (state.ancho * state.alto).toFixed(1) + ' m2' : '—'],
+    [t('rpt_entorno'), state.entorno || '—'],
+    [t('rpt_tecnologia'), state.tecnologia || '—'],
+    [t('rpt_pitch'), state.pitchMin ? 'P' + state.pitchMin + '–P' + state.pitchMax : '—'],
+    [t('rpt_dims'), state.ancho ? state.ancho + 'x' + state.alto + 'm' : '—'],
+    [t('rpt_brillo'), state.brilloMin ? state.brilloMin + '–' + state.brilloMax + ' nits' : '—'],
+    [t('rpt_refresh'), state.refreshMin ? state.refreshMin + '–' + state.refreshMax + ' Hz' : '—'],
+    [t('rpt_escenario'), escenarioNombre],
+    [t('rpt_area'), state.ancho ? (state.ancho * state.alto).toFixed(1) + ' m2' : '—'],
   ];
   chips.forEach(function(c) {
     H.push('<div class="chip"><div class="lbl">' + c[0] + '</div><div class="val">' + c[1] + '</div></div>');
@@ -3412,7 +3763,7 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   H.push('</div>');
 
   // Product cards
-  H.push('<div class="sec">Top ' + productos.length + ' modelos recomendados</div>');
+  H.push('<div class="sec">Top ' + productos.length + ' ' + (currentLang === 'en' ? 'recommended models' : 'modelos recomendados') + '</div>');
   H.push('<div class="pgrid">');
   productos.forEach(function(p, i) {
     var bg = rankBg[i] || '#f9fafb';
@@ -3425,11 +3776,11 @@ function generarYDescargarPDF(nombre, apellidos, email) {
     H.push('<div style="font-size:18px;font-weight:800;color:' + color + ';margin:3px 0">' + (p.modelo || '') + '</div>');
     H.push('<div style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:' + scoreBg + ';color:' + color + ';margin-bottom:8px">Score: ' + p.score + ' / 100</div>');
     var rows = [
-      ['Tecnologia', p.tecnologia || '—'],
-      ['Pixel Pitch', p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'],
-      ['Brillo max.', p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'],
-      ['Refresh', p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'],
-      ['IP Rating', p.ip_rating || '—'],
+      [t('rpt_tecnologia'), p.tecnologia || '—'],
+      [t('rpt_pitch'), p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'],
+      [t('rpt_brillo_max'), p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'],
+      [t('rpt_refresh_hz'), p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'],
+      [t('rpt_ip'), p.ip_rating || '—'],
     ];
     rows.forEach(function(r) {
       H.push('<div class="prow"><span style="color:#6b7280">' + r[0] + '</span><span style="font-weight:600">' + r[1] + '</span></div>');
@@ -3439,36 +3790,36 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   H.push('</div>');
 
   // Comparison table
-  H.push('<div class="sec">Tabla comparativa</div>');
-  H.push('<table><thead><tr><th style="width:160px">Parametro</th>');
+  H.push('<div class="sec">' + t('rpt_comp_table') + '</div>');
+  H.push('<table><thead><tr><th style="width:160px">' + t('rpt_param') + '</th>');
   productos.forEach(function(p) { H.push('<th>' + p.fabricante + ' ' + p.modelo + '</th>'); });
   H.push('</tr></thead><tbody>');
 
   var sections = [
-    { title: 'IDENTIFICACION', rows: [
-      ['Tecnologia', function(p) { return p.tecnologia || '—'; }],
-      ['Pixel Pitch', function(p) { return p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'; }],
-      ['Tipo LED', function(p) { return p.led_type || '—'; }],
+    { title: t('rpt_sec_id'), rows: [
+      [t('rpt_tecnologia'), function(p) { return p.tecnologia || '—'; }],
+      [t('rpt_pitch'), function(p) { return p.pitch_mm != null ? p.pitch_mm + ' mm' : '—'; }],
+      [t('rpt_tipo_led'), function(p) { return p.led_type || '—'; }],
     ]},
-    { title: 'RENDIMIENTO OPTICO', rows: [
-      ['Brillo max.', function(p) { return p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'; }],
-      ['Contraste', function(p) { return p.contraste || '—'; }],
-      ['Refresh Hz', function(p) { return p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'; }],
-      ['Angulo H', function(p) { return p.angulo_vision_h != null ? p.angulo_vision_h + 'grados' : '—'; }],
-      ['Angulo V', function(p) { return p.angulo_vision_v != null ? p.angulo_vision_v + 'grados' : '—'; }],
-      ['Grises', function(p) { return p.profundidad_grises_bit != null ? p.profundidad_grises_bit + ' bit' : '—'; }],
+    { title: t('rpt_sec_optico'), rows: [
+      [t('rpt_brillo_max'), function(p) { return p.brillo_max_nits != null ? p.brillo_max_nits.toLocaleString() + ' nits' : '—'; }],
+      [t('rpt_contraste'), function(p) { return p.contraste || '—'; }],
+      [t('rpt_refresh_hz'), function(p) { return p.refresh_hz != null ? p.refresh_hz + ' Hz' : '—'; }],
+      [t('rpt_angulo_h'), function(p) { return p.angulo_vision_h != null ? p.angulo_vision_h + '°' : '—'; }],
+      [t('rpt_angulo_v'), function(p) { return p.angulo_vision_v != null ? p.angulo_vision_v + '°' : '—'; }],
+      [t('rpt_grises'), function(p) { return p.profundidad_grises_bit != null ? p.profundidad_grises_bit + ' bit' : '—'; }],
     ]},
-    { title: 'ESPECIFICACIONES FISICAS', rows: [
-      ['IP Rating', function(p) { return p.ip_rating || '—'; }],
-      ['Mantenimiento', function(p) { return p.mantenimiento || '—'; }],
-      ['Modulo mm', function(p) { return p.modulo_ancho_mm && p.modulo_alto_mm ? p.modulo_ancho_mm + 'x' + p.modulo_alto_mm : '—'; }],
+    { title: t('rpt_sec_fisico'), rows: [
+      [t('rpt_ip'), function(p) { return p.ip_rating || '—'; }],
+      [t('rpt_mantenimiento'), function(p) { return p.mantenimiento || '—'; }],
+      [t('rpt_modulo'), function(p) { return p.modulo_ancho_mm && p.modulo_alto_mm ? p.modulo_ancho_mm + 'x' + p.modulo_alto_mm : '—'; }],
     ]},
-    { title: 'CONSUMO ENERGETICO', rows: [
-      ['Consumo max.', function(p) { return p.consumo_max_w_m2 != null ? p.consumo_max_w_m2 + ' W/m2' : '—'; }],
-      ['Consumo prom.', function(p) { return p.consumo_avg_w_m2 != null ? p.consumo_avg_w_m2 + ' W/m2' : '—'; }],
+    { title: t('rpt_sec_consumo'), rows: [
+      [t('rpt_consumo_max'), function(p) { return p.consumo_max_w_m2 != null ? p.consumo_max_w_m2 + ' W/m2' : '—'; }],
+      [t('rpt_consumo_avg'), function(p) { return p.consumo_avg_w_m2 != null ? p.consumo_avg_w_m2 + ' W/m2' : '—'; }],
     ]},
-    { title: 'CERTIFICACIONES', rows: [
-      ['Certificaciones', function(p) { return Array.isArray(p.certificaciones) ? p.certificaciones.join(', ') : (p.certificaciones || '—'); }],
+    { title: t('rpt_sec_certs'), rows: [
+      [t('rpt_certs'), function(p) { return Array.isArray(p.certificaciones) ? p.certificaciones.join(', ') : (p.certificaciones || '—'); }],
     ]},
   ];
 
@@ -3486,7 +3837,7 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   // Conclusion
   if (typeof conclusionTexto === 'string' && conclusionTexto.trim()) {
     H.push('<div class="conclusion">');
-    H.push('<div style="font-size:11px;font-weight:700;color:#1B6CF2;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Analisis del consultor IA</div>');
+    H.push('<div style="font-size:11px;font-weight:700;color:#1B6CF2;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">' + t('rpt_ia_analysis') + '</div>');
     H.push('<div style="font-size:11px;color:#374151;line-height:1.7">' + conclusionTexto.replace(/\n/g, '<br>') + '</div>');
     H.push('</div>');
   }
@@ -3494,7 +3845,7 @@ function generarYDescargarPDF(nombre, apellidos, email) {
   // Footer
   H.push('<div class="footer">');
   H.push('<span>ComparaTuLED &middot; tuled.pro</span>');
-  H.push('<span>Generado el ' + fechaHoy + ' &middot; ' + email + '</span>');
+  H.push('<span>' + t('rpt_generated') + ' ' + fechaHoy + ' &middot; ' + email + '</span>');
   H.push('</div>');
   H.push('</body></html>');
 
@@ -3519,8 +3870,8 @@ async function submitReport() {
   const texto = document.getElementById('rep-text').value.trim();
   const rgpd = document.getElementById('rep-rgpd')?.checked;
 
-  if (!email) { showToast('Introduce tu email','error'); return; }
-  if (!rgpd) { showToast('Debes aceptar la política de privacidad','error'); return; }
+  if (!email) { showToast(t('toast_email_req'),'error'); return; }
+  if (!rgpd) { showToast(t('toast_rgpd_req'),'error'); return; }
 
   try {
     const leadId = await upsertLead(nombre, apellidos, email, {});
@@ -3537,7 +3888,7 @@ async function submitReport() {
   } catch(e) { console.warn('Report error:', e.message); }
 
   closeModal('modal-report');
-  showToast('✓ Reporte enviado. Gracias por tu feedback.');
+  showToast(t('toast_report_sent'));
 }
 
 // ═══════════════════════════════════════
@@ -4807,6 +5158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 2. Arrancar el wizard con el catálogo ya cargado
   renderStep();
+
+  // 2b. Inicializar idioma: activar el botón correcto y actualizar textos estáticos
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
+  updateStaticTexts();
 
   // 3. Detectar si ya hay sesión activa (para recargas de página)
   const { data: { session } } = await window.supabaseClient.auth.getSession();

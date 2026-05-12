@@ -94,3 +94,6 @@ git push origin main
 
 ### 🌍 Configurador — Multiidioma
 - PENDIENTE: Añadir selector de idioma Español / Inglés en el configurador. Si el usuario selecciona inglés, toda la interfaz aparece en inglés: botones, textos del wizard, parámetros técnicos, conclusión IA generada por Claude, etc. Claude Code lo implementa automáticamente.
+
+### 🔐 Acceso Beta — Configurador
+- PENDIENTE: Mostrar pantalla de bienvenida "Prueba Beta" al entrar a tuled.pro. El usuario debe introducir login y contraseña para acceder al configurador. Credenciales correctas: usuario "alfaybeta26" / contraseña "testing31@2026". Si las credenciales son correctas, el configurador se desbloquea normalmente. El Admin Panel mantiene su propio sistema de login independiente y no se ve afectado. La pantalla beta debe desaparecer una vez autenticado y no volver a aparecer si el usuario recarga la página (persistir en localStorage).

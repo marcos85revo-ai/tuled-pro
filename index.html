@@ -1016,9 +1016,103 @@ input[type=range]::-webkit-slider-thumb:hover{
   .analytics-grid{grid-template-columns:1fr}
   .progress-step-label{display:none}
 }
+
+/* ══════════════════════════════════
+   BETA ACCESS OVERLAY
+══════════════════════════════════ */
+#beta-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg2);
+  display:flex;align-items:center;justify-content:center;
+}
+#beta-overlay.hidden{display:none}
+.beta-card{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:16px;
+  padding:48px 40px 40px;
+  width:100%;max-width:400px;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  box-shadow:0 8px 48px rgba(0,0,0,0.5);
+}
+.beta-logo{
+  width:48px;height:48px;
+  background:#1B6CF2;
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:22px;color:#fff;
+  margin-bottom:20px;
+}
+.beta-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;font-size:26px;color:var(--white);
+  letter-spacing:.5px;margin-bottom:6px;
+}
+.beta-subtitle{
+  font-size:13px;color:var(--text2);margin-bottom:32px;text-align:center;
+}
+.beta-badge{
+  display:inline-block;
+  background:rgba(240,120,64,0.15);
+  border:1px solid rgba(240,120,64,0.4);
+  color:var(--orange);
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;font-weight:700;
+  letter-spacing:1.5px;padding:3px 10px;border-radius:20px;
+  margin-bottom:28px;
+}
+.beta-field{
+  width:100%;margin-bottom:14px;
+}
+.beta-field label{
+  display:block;font-size:11px;color:var(--text2);
+  font-weight:500;letter-spacing:.5px;margin-bottom:6px;
+}
+.beta-field input{
+  width:100%;background:var(--surface2);
+  border:1px solid var(--border2);border-radius:8px;
+  padding:10px 14px;color:var(--white);
+  font-family:'Barlow',sans-serif;font-size:14px;
+  outline:none;transition:border-color .2s;
+}
+.beta-field input:focus{border-color:var(--cyan)}
+.beta-btn{
+  width:100%;margin-top:8px;
+  background:var(--cyan);color:#0D1117;
+  border:none;border-radius:8px;
+  padding:12px;font-family:'Barlow Condensed',sans-serif;
+  font-size:16px;font-weight:700;letter-spacing:.5px;
+  cursor:pointer;transition:opacity .2s;
+}
+.beta-btn:hover{opacity:.88}
+.beta-error{
+  margin-top:12px;font-size:12px;
+  color:var(--red);min-height:18px;text-align:center;
+}
 </style>
 </head>
 <body>
+
+<!-- ══ BETA ACCESS OVERLAY ══ -->
+<div id="beta-overlay" class="hidden">
+  <div class="beta-card">
+    <div class="beta-logo">◼</div>
+    <div class="beta-title">COMPARA <span style="color:var(--cyan)">TU LED</span></div>
+    <div class="beta-subtitle">Configurador profesional de pantallas LED</div>
+    <div class="beta-badge">PRUEBA BETA</div>
+    <div class="beta-field">
+      <label>USUARIO</label>
+      <input type="text" id="beta-user" placeholder="Introduce tu usuario" autocomplete="username" onkeydown="if(event.key==='Enter')betaLogin()">
+    </div>
+    <div class="beta-field">
+      <label>CONTRASEÑA</label>
+      <input type="password" id="beta-pass" placeholder="Introduce tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')betaLogin()">
+    </div>
+    <button class="beta-btn" onclick="betaLogin()">Acceder</button>
+    <div class="beta-error" id="beta-error"></div>
+  </div>
+</div>
 
 <!-- ══ HEADER ══ -->
 <header id="app-header">
@@ -5152,7 +5246,30 @@ async function changeAdminPass() {
 // ═══════════════════════════════════════
 // INIT — Carga Supabase y arranca el wizard
 // ═══════════════════════════════════════
+/* ── BETA ACCESS ── */
+function betaLogin() {
+  const user = document.getElementById('beta-user').value.trim();
+  const pass = document.getElementById('beta-pass').value;
+  if (user === 'alfaybeta26' && pass === 'testing31@2026') {
+    localStorage.setItem('beta_auth', 'true');
+    document.getElementById('beta-overlay').classList.add('hidden');
+    document.getElementById('beta-error').textContent = '';
+  } else {
+    document.getElementById('beta-error').textContent = 'Credenciales incorrectas. Inténtalo de nuevo.';
+    document.getElementById('beta-pass').value = '';
+    document.getElementById('beta-pass').focus();
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // 0. Beta access gate (skip if Admin Portal URL)
+  const isAdminUrl = new URLSearchParams(window.location.search).get('admin') === '1';
+  if (!isAdminUrl && localStorage.getItem('beta_auth') !== 'true') {
+    const overlay = document.getElementById('beta-overlay');
+    overlay.classList.remove('hidden');
+    setTimeout(() => document.getElementById('beta-user').focus(), 50);
+  }
+
   // 1. Cargar productos reales desde Supabase antes de arrancar
   await loadCatalogueFromSupabase();
 
